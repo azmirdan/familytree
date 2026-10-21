@@ -26,7 +26,7 @@ dialog{border:1px solid var(--bd);border-radius:10px;background:var(--card);colo
 <dialog id="dlg"><form method="dialog" id="frm"><fieldset><legend>Person details</legend><label for="name">Name</label><input id="name" required><label for="gender">Gender</label><select id="gender"><option value="M">Male</option><option value="F">Female</option><option value="U">Not specified</option></select><label for="birthdate">Birth date</label><input id="birthdate" type="date"><label for="deathdate">Death date</label><input id="deathdate" type="date"><label class="chk"><input type="checkbox" id="deceased"> Deceased</label></fieldset><div class="row"><button type="submit" class="pri" value="save">Save</button><button type="button" id="cancel">Cancel</button></div></form></dialog>
 <script>
 "use strict";
-const KEY="familytree.v1",NS="http://www.w3.org/2000/svg",CW=170,CH=94,DX=230,DY=142;
+const KEY="familytree.v2",LEGACY_KEY="familytree.v1",NS="http://www.w3.org/2000/svg",CW=170,CH=94,DX=230,DY=142;
 const $=id=>document.getElementById(id),svg=$("svg"),vp=$("vp");
 let db={version:2,people:[],marriages:[],parentChild:[]},sel=null,view={k:1,x:0,y:0},moving=false,points=new Map(),lastDist=0,editId=null,nextId=100;
 const sampleLegacy=[{id:1,n:"Abu",g:"M",sp:null,kids:[{id:2,n:"Hj Mat Abu",g:"M",sp:{n:"Hjh Haning",g:"F"},kids:[{id:3,n:"Hj Hazizan Hj Mat",g:"M",sp:{n:"Hjh Zaharah Hj Mat Ali",g:"F"},kids:[{id:4,n:"Hjh Naiimah Hj Hazizan",g:"F",sp:{n:"Hj Muhamad Dan Mahat",g:"M"},kids:[{id:5,n:"Azmir Dan",g:"M",sp:null,kids:[]},{id:6,n:"Azfar Dan",g:"M",sp:null,kids:[]},{id:7,n:"Farah Fasihah",g:"F",sp:null,kids:[]},{id:8,n:"Mahzuz Dan",g:"M",sp:null,kids:[]},{id:9,n:"Farah Nabihah",g:"F",sp:null,kids:[]}]}]}]}]}];
@@ -49,7 +49,7 @@ function migrateLegacy(roots){
 function validDb(x){return x&&Array.isArray(x.people)&&Array.isArray(x.marriages)&&Array.isArray(x.parentChild)&&x.people.every(p=>p&&p.id!=null&&typeof p.name==="string")}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){alert("Could not save in this browser. Please use Save file to back up your tree.")}}
 function loadData(raw){if(Array.isArray(raw))db=migrateLegacy(raw);else if(validDb(raw))db=raw;else throw Error("Invalid family tree format");db.people.forEach(p=>{p.id=String(p.id);p.gender=p.gender||"U"});nextId=Math.max(100,...db.people.map(p=>Number(p.id)+1||100));sel=null;save();render(false)}
-try{const raw=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(raw))db=migrateLegacy(raw);else if(validDb(raw))db=raw;else db=migrateLegacy(sampleLegacy)}catch(e){db=migrateLegacy(sampleLegacy)}
+try{const raw=JSON.parse(localStorage.getItem(KEY)||"null");const legacy=JSON.parse(localStorage.getItem(LEGACY_KEY)||"null");if(validDb(raw))db=raw;else if(Array.isArray(legacy))db=migrateLegacy(legacy);else if(validDb(legacy))db=legacy;else if(Array.isArray(raw))db=migrateLegacy(raw);else db=migrateLegacy(sampleLegacy)}catch(e){db=migrateLegacy(sampleLegacy)}
 nextId=Math.max(100,...db.people.map(p=>Number(p.id)+1||100));
 function fmtDate(v){if(!v)return "";const d=new Date(v+"T00:00:00Z");return Number.isNaN(d.getTime())?v:new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"numeric",timeZone:"UTC"}).format(d)}
 function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);Object.keys(attrs||{}).forEach(k=>e.setAttribute(k,attrs[k]));if(parent)parent.appendChild(e);return e}
