@@ -1,6 +1,7 @@
 FamilyTree
 A simple family tree website. Add unlimited generations: grandparents, parents, children, spouses, grandchildren and more.
 Blue icon for men, orange icon for women
+Record birth and death dates for people and their spouses; dates appear in person details and card tooltips
 Click any card to edit, add a spouse, add a child or delete
 Zoom with the mouse wheel, pinch, or the Zoom buttons; drag to pan
 Data is saved in your browser. Use Save file / Open file to back up or move it
