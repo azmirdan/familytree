@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Tree</title>
+<style>
+:root{--bg:#f1eeea;--ink:#2b2b2b;--line:#8a8a8a;--male:#0f7a94;--female:#e8641b;--card:#fff;--bar:#fff;--bd:#d9d4cc}
+@media (prefers-color-scheme:dark){:root{--bg:#1d1f21;--ink:#ececec;--line:#777;--card:#2a2d30;--bar:#2a2d30;--bd:#44484c}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",sans-serif;overflow:hidden}
+#bar{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--bar);border-bottom:1px solid var(--bd);z-index:5}
+#bar h1{font-size:18px;margin:0 auto 0 0;font-weight:700}
+button{font:inherit;padding:7px 12px;border:1px solid var(--bd);background:var(--card);color:var(--ink);border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--male)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--male);outline-offset:2px}
+button.pri{background:var(--male);color:#fff;border-color:var(--male)}
+button.del{color:#c0392b}
+#svg{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+#svg.drag{cursor:grabbing}
+.card rect{fill:var(--card);stroke:var(--bd);stroke-width:1.5}
+.card:hover rect{stroke:var(--male);stroke-width:2.5}
+.card{cursor:pointer}
+.card text{fill:var(--ink);font-size:13px;text-anchor:middle}
+.ln{stroke:var(--line);stroke-width:3;fill:none}
+.ring{fill:var(--bg);stroke:var(--line);stroke-width:3}
+#empty{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;text-align:center;line-height:1.6}
+dialog{border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--ink);padding:20px;width:min(380px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+fieldset{border:1px solid var(--bd);border-radius:8px;margin:0 0 12px;padding:10px 12px}
+label{display:block;font-size:13px;margin:6px 0 2px}
+input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="bar">
+  <h1>Family Tree</h1>
+  <button id="addRoot" class="pri">Add person</button>
+  <button id="zin" title="Zoom in">Zoom +</button>
+  <button id="zout" title="Zoom out">Zoom −</button>
+  <button id="fit">Fit to screen</button>
+  <button id="exp">Save file</button>
+  <button id="imp">Open file</button>
+  <button id="rst">Load sample</button>
+  <input id="file" type="file" accept=".json" hidden>
+</div>
+<svg id="svg"><g id="vp"></g></svg>
+<div id="empty"><div>No one here yet.<br>Choose “Add person” to start your tree.</div></div>
+
+<dialog id="dlg">
+  <form method="dialog" id="frm">
+    <fieldset><legend id="lg1">Person</legend>
+      <label for="n1">Name</label><input id="n1" required>
+      <label for="g1">Gender</label><select id="g1"><option value="M">Male</option><option value="F">Female</option></select>
+    </fieldset>
+    <fieldset><legend>Spouse (optional)</legend>
+      <label for="n2">Name</label><input id="n2" placeholder="Leave empty if none">
+      <label for="g2">Gender</label><select id="g2"><option value="F">Female</option><option value="M">Male</option></select>
+    </fieldset>
+    <div class="row">
+      <button type="submit" class="pri" value="save">Save</button>
+      <button type="button" id="addKid">Add child</button>
+      <button type="button" id="delBtn" class="del">Delete</button>
+      <button type="button" id="cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const KEY="familytree.v1";
+const SAMPLE=[{id:1,n:"Abu",g:"M",sp:null,kids:[
+ {id:2,n:"Hj Mat Abu",g:"M",sp:{n:"Hjh Haning",g:"F"},kids:[
+  {id:3,n:"Hj Hazizan Hj Mat",g:"M",sp:{n:"Hjh Zaharah Hj Mat Ali",g:"F"},kids:[
+   {id:4,n:"Hjh Naiimah Hj Hazizan",g:"F",sp:{n:"Hj Muhamad Dan Mahat",g:"M"},kids:[
+    {id:5,n:"Azmir Dan",g:"M",sp:null,kids:[]},
+    {id:6,n:"Azfar Dan",g:"M",sp:null,kids:[]},
+    {id:7,n:"Farah Fasihah",g:"F",sp:null,kids:[]},
+    {id:8,n:"Mahzuz Dan",g:"M",sp:null,kids:[]},
+    {id:9,n:"Farah Nabihah",g:"F",sp:null,kids:[]}]}]}]}]}];
+
+let roots, nextId=100, cur=null, curParent=null;
+try{roots=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!Array.isArray(roots))roots=JSON.parse(JSON.stringify(SAMPLE));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(roots))}catch(e){}};
+
+const CW=130,CH=118,SP=36,GAP=28,VG=80,NS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+const svg=$("svg"),vp=$("vp");
+let view={k:1,x:0,y:0};
+const applyView=()=>vp.setAttribute("transform",`translate(${view.x} ${view.y}) scale(${view.k})`);
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+
+function measure(u){
+  const own=u.sp?2*CW+SP:CW;
+  u.kidsW=u.kids.reduce((s,c)=>s+measure(c),0)+GAP*Math.max(0,u.kids.length-1);
+  u.w=Math.max(own,u.kidsW);u.own=own;return u.w+0;
+}
+function place(u,left,y,list){
+  const cx=left+u.w/2;list.push({u,cx,y});
+  let x=left+(u.w-u.kidsW)/2;
+  u.kids.forEach(c=>{place(c,x,y+CH+VG,list);x+=c.w+GAP});
+}
+function iconPath(g){return g}
+function person(parent,name,g,cx,y,u,which){
+  const c=el("g",{class:"card",tabindex:0,role:"button","aria-label":`Edit ${name}`},parent);
+  c.setAttribute("transform",`translate(${cx-CW/2} ${y})`);
+  el("rect",{width:CW,height:CH,rx:10},c);
+  const col=g==="F"?"var(--female)":"var(--male)";
+  el("circle",{cx:CW/2,cy:38,r:28,fill:col},c);
+  // silhouette: head + shoulders; women get longer hair
+  el("circle",{cx:CW/2,cy:30,r:9,fill:"#fff"},c);
+  if(g==="F")el("path",{d:`M${CW/2-12} 30 a12 12 0 0 1 24 0 v14 h-5 v-14 h-14 v14 h-5z`,fill:"#fff"},c);
+  el("path",{d:`M${CW/2-17} 58 q0-15 17-15 q17 0 17 15z`,fill:"#fff"},c);
+  const words=name.split(" "),lines=[""];
+  words.forEach(w=>{const l=lines[lines.length-1];if((l+" "+w).trim().length>17&&l)lines.push(w);else lines[lines.length-1]=(l+" "+w).trim()});
+  lines.slice(0,3).forEach((t,i)=>{const tx=el("text",{x:CW/2,y:84+i*15},c);tx.textContent=t});
+  const open=()=>edit(u);
+  c.addEventListener("click",e=>{if(!moved)open()});
+  c.addEventListener("keydown",e=>{if(e.key==="Enter")open()});
+}
+function render(keepView){
+  vp.innerHTML="";
+  $("empty").style.display=roots.length?"none":"flex";
+  if(!roots.length){return}
+  let x=0,all=[];
+  roots.forEach(r=>{measure(r);place(r,x,0,all);x+=r.w+GAP*3});
+  const lines=el("g",{},vp),cards=el("g",{},vp);
+  all.forEach(({u,cx,y})=>{
+    const my=y+38;
+    if(u.sp){
+      const l=cx-u.own/2+CW/2,r=cx+u.own/2-CW/2;
+      el("line",{x1:l,y1:my,x2:r,y2:my,class:"ln"},lines);
+      el("circle",{cx,cy:my,r:9,class:"ring"},lines);
+      person(cards,u.n,u.g,l,y,u);
+      person(cards,u.sp.n,u.sp.g,r,y,{sp:true,ref:u});
+    }else person(cards,u.n,u.g,cx,y,u);
+    if(u.kids.length){
+      const by=y+CH+VG/2;
+      el("line",{x1:cx,y1:u.sp?my+9:y+CH,x2:cx,y2:by,class:"ln"},lines);
+      const xs=u.kids.map(k=>all.find(a=>a.u===k).cx);
+      if(xs.length>1)el("line",{x1:Math.min(...xs),y1:by,x2:Math.max(...xs),y2:by,class:"ln"},lines);
+      xs.forEach(kx=>el("line",{x1:kx,y1:by,x2:kx,y2:y+CH+VG,class:"ln"},lines));
+    }
+  });
+  // spouse card line should start behind cards: fix by drawing couple line first (done)
+  if(!keepView)fit();else applyView();
+}
+function fit(){
+  const b=vp.getBBox();if(!b.width)return;
+  const W=innerWidth,H=innerHeight-60,m=40;
+  const k=Math.min((W-m*2)/b.width,(H-m*2)/b.height,1.2);
+  view={k,x:(W-b.width*k)/2-b.x*k,y:60+(H-b.height*k)/2-b.y*k};applyView();
+}
+function zoomAt(f,px,py){
+  const k=Math.min(4,Math.max(.1,view.k*f)),r=k/view.k;
+  view.x=px-(px-view.x)*r;view.y=py-(py-view.y)*r;view.k=k;applyView();
+}
+// pan / zoom input
+let moved=false,pts=new Map(),last=0;
+svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY)},{passive:false});
+svg.addEventListener("pointerdown",e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;if(pts.size==2)last=dist()});
+svg.addEventListener("pointermove",e=>{
+  const p=pts.get(e.pointerId);if(!p)return;
+  if(pts.size==1){
+    const dx=e.clientX-p.x,dy=e.clientY-p.y;
+    if(Math.abs(dx)+Math.abs(dy)>3){moved=true;svg.classList.add("drag");view.x+=dx;view.y+=dy;p.x=e.clientX;p.y=e.clientY;applyView()}
+  }else{
+    p.x=e.clientX;p.y=e.clientY;const d=dist(),c=mid();moved=true;
+    if(last)zoomAt(d/last,c.x,c.y);last=d;
+  }
+});
+const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+const mid=()=>{const a=[...pts.values()];return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+const up=e=>{pts.delete(e.pointerId);last=0;svg.classList.remove("drag");setTimeout(()=>moved=false,0)};
+svg.addEventListener("pointerup",up);svg.addEventListener("pointercancel",up);
+$("zin").onclick=()=>zoomAt(1.25,innerWidth/2,innerHeight/2);
+$("zout").onclick=()=>zoomAt(.8,innerWidth/2,innerHeight/2);
+$("fit").onclick=fit;
+addEventListener("resize",fit);
+
+// editing
+const dlg=$("dlg");
+function findParent(list,u,par){for(const x of list){if(x===u)return par;const r=findParent(x.kids,u,x);if(r!==undefined)return r}}
+function edit(u){
+  if(u.sp)u=u.ref;
+  cur=u;
+  $("lg1").textContent=u.n||"Person";
+  $("n1").value=u.n;$("g1").value=u.g;
+  $("n2").value=u.sp?u.sp.n:"";$("g2").value=u.sp?u.sp.g:(u.g==="M"?"F":"M");
+  $("delBtn").style.display=u.isNew?"none":"";
+  dlg.showModal();
+}
+$("frm").addEventListener("submit",e=>{
+  cur.n=$("n1").value.trim()||"Unnamed";cur.g=$("g1").value;
+  const s=$("n2").value.trim();
+  cur.sp=s?{n:s,g:$("g2").value}:null;
+  delete cur.isNew;save();render(true);
+});
+$("cancel").onclick=()=>{dlg.close();render(true)};
+$("addKid").onclick=()=>{
+  const u=cur;u.n=$("n1").value.trim()||"Unnamed";u.g=$("g1").value;
+  const s=$("n2").value.trim();u.sp=s?{n:s,g:$("g2").value}:null;
+  const k={id:nextId++,n:"New child",g:"M",sp:null,kids:[]};
+  u.kids.push(k);save();render(true);dlg.close();edit(k);
+};
+$("delBtn").onclick=()=>{
+  if(!confirm(`Delete ${cur.n} and all descendants?`))return;
+  const p=findParent(roots,cur,null);
+  const list=p?p.kids:roots;list.splice(list.indexOf(cur),1);
+  dlg.close();save();render(true);
+};
+$("addRoot").onclick=()=>{
+  const u={id:nextId++,n:"New person",g:"M",sp:null,kids:[]};
+  roots.push(u);save();render(true);edit(u);
+};
+$("exp").onclick=()=>{
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(roots,null,2)],{type:"application/json"}));
+  a.download="family-tree.json";a.click();
+};
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d))throw 0;roots=d;save();render()}catch(_){alert("This file is not a valid family tree file.")}});
+};
+$("rst").onclick=()=>{if(confirm("Replace the current tree with the sample?")){roots=JSON.parse(JSON.stringify(SAMPLE));save();render()}};
+render();
+</script>
+</body>
+</html>
