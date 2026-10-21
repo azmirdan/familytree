@@ -80,11 +80,15 @@ input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px
   <form method="dialog" id="frm">
     <fieldset><legend id="lg1">Person</legend>
       <label for="n1">Name</label><input id="n1" required>
+      <label for="bd1">Birth date</label><input id="bd1" type="date">
+      <label for="dd1">Death date</label><input id="dd1" type="date">
       <label for="g1">Gender</label><select id="g1"><option value="M">Male</option><option value="F">Female</option></select>
       <label class="chk"><input type="checkbox" id="d1"> Deceased</label>
     </fieldset>
     <fieldset><legend>Spouse (optional)</legend>
       <label for="n2">Name</label><input id="n2" placeholder="Leave empty if none">
+      <label for="bd2">Birth date</label><input id="bd2" type="date">
+      <label for="dd2">Death date</label><input id="dd2" type="date">
       <label for="g2">Gender</label><select id="g2"><option value="F">Female</option><option value="M">Male</option></select>
       <label for="ms">Marriage status</label><select id="ms"><option value="married">Married</option><option value="separated">Separated</option><option value="divorced">Divorced</option></select>
       <label class="chk"><input type="checkbox" id="d2"> Deceased</label>
@@ -153,8 +157,8 @@ function idxLin(owner,kind){
 }
 function index(list,par){list.forEach(u=>{defP(u,"parent",par);nextId=Math.max(nextId,u.id+1);idxLin(u,"up");idxLin(u,"par");index(u.kids,u)})}
 function buildReg(){reg={};
-  const addU=u=>{reg[keyOf(u,"m")]={u,w:"m",n:u.n,g:u.g,dead:u.dead};
-    if(u.sp)reg[keyOf(u,"s")]={u,w:"s",n:u.sp.n,g:u.sp.g,dead:u.sp.dead};
+  const addU=u=>{reg[keyOf(u,"m")]={u,w:"m",n:u.n,g:u.g,dead:u.dead,birthdate:u.birthdate,deathdate:u.deathdate};
+    if(u.sp)reg[keyOf(u,"s")]={u,w:"s",n:u.sp.n,g:u.sp.g,dead:u.sp.dead,birthdate:u.sp.birthdate,deathdate:u.sp.deathdate};
     if(u.up)w(u.up);if(u.sp&&u.sp.par)w(u.sp.par)};
   const w=u=>{addU(u);(u.kids||[]).forEach(w)};roots.forEach(w)}
 const parU=(u,w)=>w==="m"?(u.parent||u.up||null):((u.sp&&u.sp.par)||null);
@@ -170,11 +174,20 @@ function relations(p){
   while(lv.length){R.desc.push(lv.map(k=>keyOf(k,"m")));lv.forEach(k=>{if(k.sp)R.descSp.push(keyOf(k,"s"))});lv=lv.flatMap(k=>k.kids)}
   return R;
 }
+function fmtDate(value){
+  if(!value)return "";
+  const d=new Date(value+"T00:00:00Z");
+  return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"numeric",timeZone:"UTC"}).format(d);
+}
 function sentence(p){
   const u=p.u,par=parU(u,p.w),H=gl(p.g,"He","She");
   let t=par?`${p.n} is the ${gl(p.g,"son","daughter")} of ${par.n}${par.sp?" and "+par.sp.n:""}.`:`${p.n}'s parents are not recorded.`;
-  const o=p.w==="s"?{n:u.n,dead:u.dead}:u.sp?{n:u.sp.n,dead:u.sp.dead}:null;
+  if(p.birthdate)t+=` Born ${fmtDate(p.birthdate)}.`;
+  if(p.deathdate)t+=` Died ${fmtDate(p.deathdate)}.`;
+  const o=p.w==="s"?{n:u.n,dead:u.dead,birthdate:u.birthdate,deathdate:u.deathdate}:u.sp?{n:u.sp.n,dead:u.sp.dead,birthdate:u.sp.birthdate,deathdate:u.sp.deathdate}:null;
   if(o)t+=` ${H} ${msTxt(u.ms)} ${o.n}${o.dead?" (deceased)":""}.`;
+  if(o&&o.birthdate)t+=` ${o.n} was born ${fmtDate(o.birthdate)}.`;
+  if(o&&o.deathdate)t+=` ${o.n} died ${fmtDate(o.deathdate)}.`;
   if(p.dead)t+=` ${H} is deceased.`;
   return t;
 }
@@ -359,10 +372,14 @@ function findParent(list,u,par){for(const x of list){if(x===u)return par;const r
 function applyFields(){
   cur.n=$("n1").value.trim()||"Unnamed";cur.g=$("g1").value;
   if($("d1").checked)cur.dead=true;else delete cur.dead;
+  if($("bd1").value)cur.birthdate=$("bd1").value;else delete cur.birthdate;
+  if($("dd1").value)cur.deathdate=$("dd1").value;else delete cur.deathdate;
   const t=$("n2").value.trim();
   if(t){
     cur.sp=Object.assign(cur.sp||{},{n:t,g:$("g2").value});
     if($("d2").checked)cur.sp.dead=true;else delete cur.sp.dead;
+    if($("bd2").value)cur.sp.birthdate=$("bd2").value;else delete cur.sp.birthdate;
+    if($("dd2").value)cur.sp.deathdate=$("dd2").value;else delete cur.sp.deathdate;
     if($("ms").value==="married")delete cur.ms;else cur.ms=$("ms").value;
   }else{cur.sp=null;delete cur.ms}
 }
@@ -370,7 +387,9 @@ function edit(u){
   cur=u;
   $("lg1").textContent=u.n||"Person";
   $("n1").value=u.n;$("g1").value=u.g;$("d1").checked=!!u.dead;
+  $("bd1").value=u.birthdate||"";$("dd1").value=u.deathdate||"";
   $("n2").value=u.sp?u.sp.n:"";$("g2").value=u.sp?u.sp.g:(u.g==="M"?"F":"M");
+  $("bd2").value=u.sp?u.sp.birthdate||"":"";$("dd2").value=u.sp?u.sp.deathdate||"":"";
   $("d2").checked=!!(u.sp&&u.sp.dead);$("ms").value=u.ms||"married";
   $("addKid").style.display="";
   $("addP1").style.display=(u.parent||u.up)?"none":"";
