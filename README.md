@@ -2,6 +2,7 @@ FamilyTree
 A simple interactive family tree website with unlimited parent-child links and up to four spouses per person.
 
 Features
+- When adding a person, choose whether they are a parent, child, or spouse of an existing person, or add them as a new starting person.
 - Add people, parents and children without a generation limit.
 - Add up to four spouses per person, including a person already in the tree.
 - Select a person without hiding the rest of the tree; up to four ancestor generations are highlighted.
