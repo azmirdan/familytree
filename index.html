@@ -72,10 +72,9 @@ input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px
 <aside id="panel" hidden aria-live="polite">
   <div class="ph"><h2 id="pt"></h2><button id="pclose" aria-label="Close">✕</button></div>
   <p id="ps"></p>
-  <label for="pmode">Highlight on chart</label>
-  <select id="pmode"><option value="all">Whole family</option><option value="anc">Ancestors only</option><option value="desc">Descendants only</option><option value="sib">Brothers &amp; sisters only</option></select>
   <div id="prel"></div>
-  <div class="row"><button id="pedit" class="pri">Edit this person</button></div>
+  <div class="row"><button id="pedit" class="pri">Edit this person</button>
+    <button id="pall">Show whole tree</button></div>
 </aside>
 <dialog id="dlg">
   <form method="dialog" id="frm">
@@ -149,27 +148,25 @@ const defP=(o,k,v)=>Object.defineProperty(o,k,{value:v,writable:true,enumerable:
 // parents of the in-law side ("par" on a spouse) and of a top person ("up") are stored as linked units
 function idxLin(owner,kind){
   const L=kind==="par"?(owner.sp&&owner.sp.par):owner.up;if(!L)return;
-  defP(L,"kind",kind);defP(L,"owner",owner);defP(L,"child",keyOf(owner,kind==="par"?"s":"m"));defP(L,"parent",null);
+  defP(L,"kind",kind);defP(L,"owner",owner);defP(L,"child",keyOf(owner,kind==="par"?"s":"m"));defP(L,"parent",null);index(L.kids||[],L);
   nextId=Math.max(nextId,L.id+1);idxLin(L,"up");idxLin(L,"par");
 }
 function index(list,par){list.forEach(u=>{defP(u,"parent",par);nextId=Math.max(nextId,u.id+1);idxLin(u,"up");idxLin(u,"par");index(u.kids,u)})}
 function buildReg(){reg={};
   const addU=u=>{reg[keyOf(u,"m")]={u,w:"m",n:u.n,g:u.g,dead:u.dead};
     if(u.sp)reg[keyOf(u,"s")]={u,w:"s",n:u.sp.n,g:u.sp.g,dead:u.sp.dead};
-    if(u.up)addU(u.up);if(u.sp&&u.sp.par)addU(u.sp.par)};
-  const w=u=>{addU(u);u.kids.forEach(w)};roots.forEach(w)}
+    if(u.up)w(u.up);if(u.sp&&u.sp.par)w(u.sp.par)};
+  const w=u=>{addU(u);(u.kids||[]).forEach(w)};roots.forEach(w)}
 const parU=(u,w)=>w==="m"?(u.parent||u.up||null):((u.sp&&u.sp.par)||null);
 function relations(p){
-  const R={anc:[],sib:[],desc:[],descSp:[],spouse:[]},u=p.u;
+  const R={anc:[],sib:[],desc:[],descSp:[],spouse:[]},u=p.u,pu=parU(u,p.w);
   const ks=x=>[keyOf(x,"m"),...(x.sp?[keyOf(x,"s")]:[])];
-  let up=[parU(u,p.w)].filter(Boolean);
+  let up=[pu].filter(Boolean);
   while(up.length){R.anc.push(up.flatMap(ks));up=up.flatMap(x=>[parU(x,"m"),parU(x,"s")]).filter(Boolean)}
-  if(p.w==="m"){
-    if(u.parent)R.sib=u.parent.kids.filter(k=>k!==u).map(k=>keyOf(k,"m"));
-    if(u.sp)R.spouse=[keyOf(u,"s")];
-  }else R.spouse=[keyOf(u,"m")];
+  if(pu){R.sib=(pu.kids||[]).filter(k=>k!==u).map(k=>keyOf(k,"m"));if(pu.child&&pu.child!==keyOf(u,p.w))R.sib.push(pu.child)}
+  if(p.w==="m"){if(u.sp)R.spouse=[keyOf(u,"s")]}else R.spouse=[keyOf(u,"m")];
   let lv=u.kids||[];
-  if(u.child){R.desc.push([u.child]);lv=reg[u.child].u.kids||[]}
+  if(u.child){const cu=reg[u.child].u;R.desc.push([u.child,...lv.map(k=>keyOf(k,"m"))]);lv.forEach(k=>{if(k.sp)R.descSp.push(keyOf(k,"s"))});lv=[...(cu.kids||[]),...lv.flatMap(k=>k.kids)]}
   while(lv.length){R.desc.push(lv.map(k=>keyOf(k,"m")));lv.forEach(k=>{if(k.sp)R.descSp.push(keyOf(k,"s"))});lv=lv.flatMap(k=>k.kids)}
   return R;
 }
@@ -200,7 +197,6 @@ function person(parent,name,g,cx,y,key,set,tags){
   el("circle",{cx:CW/2,cy:30,r:9,fill:"#fff"},c);
   if(g==="F")el("path",{d:`M${CW/2-12} 30 a12 12 0 0 1 24 0 v14 h-5 v-14 h-14 v14 h-5z`,fill:"#fff"},c);
   el("path",{d:`M${CW/2-17} 58 q0-15 17-15 q17 0 17 15z`,fill:"#fff"},c);
-  if(dead)el("text",{x:CW-16,y:20,class:"cr"},c).textContent="✝";
   const lines=[""];
   name.split(" ").forEach(w=>{const l=lines[lines.length-1];if((l+" "+w).trim().length>17&&l)lines.push(w);else lines[lines.length-1]=(l+" "+w).trim()});
   if(lines.length>2){lines.length=2;lines[1]+="…"}
@@ -216,37 +212,25 @@ function person(parent,name,g,cx,y,key,set,tags){
 function render(keepView){
   index(roots,null);buildReg();
   if(sel&&!reg[sel])sel=null;
-  const H=sel?highlight(reg[sel]):null,set=H&&H.s,tags=H?H.t:{};
+  const tags=sel?highlight(reg[sel]).t:{},set=null;
   vp.innerHTML="";
   $("empty").style.display=roots.length?"none":"flex";
   if(!roots.length){showPanel();return}
-  let x=0,all=[];
-  roots.forEach(r=>{measure(r);place(r,x,0,all);x+=r.w+GAP*3});
-  // place parents of in-laws / top persons above, avoiding overlap with anything already on that row
-  const STEP=CH+VG,occ={},lins=[];
-  const occAdd=(y,a,b)=>(occ[y]=occ[y]||[]).push([a,b]);
-  all.forEach(({u,cx,y})=>occAdd(y,cx-u.own/2,cx+u.own/2));
-  const cardX=(u,cx,w)=>u.sp?(w==="m"?cx-u.own/2+CW/2:cx+u.own/2-CW/2):cx;
-  const placeLin=(L,want,y,tx,ty,ck)=>{
-    L.own=L.sp?2*CW+SP:CW;let left=want-L.own/2,again=true;
-    while(again){again=false;for(const[a,b]of occ[y]||[])if(left<b+GAP&&left+L.own>a-GAP){left=b+GAP;again=true}}
-    const cx=left+L.own/2;occAdd(y,left,left+L.own);lins.push({u:L,cx,y,tx,ty,ck});
-    if(L.up)placeLin(L.up,cardX(L,cx,"m"),y-STEP,cardX(L,cx,"m"),y,keyOf(L,"m"));
-    if(L.sp&&L.sp.par)placeLin(L.sp.par,cardX(L,cx,"s"),y-STEP,cardX(L,cx,"s"),y,keyOf(L,"s"));
-  };
-  all.forEach(({u,cx,y})=>{
-    if(!u.parent&&u.up)placeLin(u.up,cardX(u,cx,"m"),y-STEP,cardX(u,cx,"m"),y,keyOf(u,"m"));
-    if(u.sp&&u.sp.par)placeLin(u.sp.par,cardX(u,cx,"s"),y-STEP,cardX(u,cx,"s"),y,keyOf(u,"s"));
-  });
+  const STEP=CH+VG;
   const lines=el("g",{},vp),cards=el("g",{},vp);
-  const has=(u,w)=>!!set&&(w==="m"?set.has(keyOf(u,"m")):!!u.sp&&set.has(keyOf(u,"s")));
-  const inU=u=>has(u,"m")||has(u,"s");
-  const cls=on=>"ln"+(set?(on?" hl":" dim"):"");
+  const own=v=>{v.own=v.sp?2*CW+SP:CW;return v.own};
+  const cardX=(u,cx,w)=>u.sp?(w==="m"?cx-u.own/2+CW/2:cx+u.own/2-CW/2):cx;
+  const link=(fx,fy,sp,tx,ty)=>{
+    const sy=sp?fy+47:fy+CH,by=fy+CH+VG/2;
+    el("line",{x1:fx,y1:sy,x2:fx,y2:by,class:"ln"},lines);
+    if(tx!==fx)el("line",{x1:fx,y1:by,x2:tx,y2:by,class:"ln"},lines);
+    el("line",{x1:tx,y1:by,x2:tx,y2:ty,class:"ln"},lines);
+  };
   const drawUnit=(u,cx,y)=>{
-    const my=y+38;
+    const my=y+38;own(u);
     if(u.sp){
       const l=cx-u.own/2+CW/2,r=cx+u.own/2-CW/2,st=u.ms;
-      el("line",{x1:l,y1:my,x2:r,y2:my,class:cls(has(u,"m")&&has(u,"s"))+(st==="divorced"?" div":st==="separated"?" sep":"")},lines);
+      el("line",{x1:l,y1:my,x2:r,y2:my,class:"ln"+(st==="divorced"?" div":st==="separated"?" sep":"")},lines);
       el("circle",{cx,cy:my,r:9,class:"ring"},lines);
       if(st==="divorced")el("line",{x1:cx-8,y1:my+8,x2:cx+8,y2:my-8,class:"cut"},lines);
       if(st)el("text",{x:cx,y:my+25,class:"mlbl"},lines).textContent=cap(st);
@@ -254,38 +238,76 @@ function render(keepView){
       person(cards,u.sp.n,u.sp.g,r,y,keyOf(u,"s"),set,tags);
     }else person(cards,u.n,u.g,cx,y,keyOf(u,"m"),set,tags);
   };
+  if(sel){
+    // focus view: the selected person (with spouse), their parents and their children only
+    const p=reg[sel],u=p.u;own(u);
+    drawUnit(u,0,0);
+    const pu=parU(u,p.w);
+    if(pu){own(pu);const tx=cardX(u,0,p.w);drawUnit(pu,tx,-STEP);link(tx,-STEP,!!pu.sp,tx,0)}
+    const kids=[...(u.kids||[])];let linked=null;
+    if(u.child){linked=reg[u.child].u;kids.unshift(linked)}
+    kids.forEach(own);
+    let left=-(kids.reduce((a,k)=>a+k.own,0)+GAP*Math.max(0,kids.length-1))/2;
+    kids.forEach(k=>{
+      const kcx=left+k.own/2;left+=k.own+GAP;
+      drawUnit(k,kcx,STEP);
+      link(0,0,!!u.sp,k===linked?cardX(k,kcx,u.child.endsWith("s")?"s":"m"):kcx,STEP);
+    });
+    showPanel();fit();return;
+  }
+  let x=0;const all=[],occ={},lins=[];
+  roots.forEach(r=>{measure(r);place(r,x,0,all);x+=r.w+GAP*3});
+  const occAdd=(y,a,b)=>(occ[y]=occ[y]||[]).push([a,b]);
+  all.forEach(e=>occAdd(e.y,e.cx-e.u.own/2,e.cx+e.u.own/2));
+  const fitTree=(u,want,y)=>{
+    measure(u);const rel=[];place(u,0,y,rel);
+    let left=want-u.w/2;
+    for(let g=0;g<200;g++){
+      let need=0;
+      rel.forEach(e=>{const l=left+e.cx-e.u.own/2,r=left+e.cx+e.u.own/2;(occ[e.y]||[]).forEach(([a,b])=>{if(l<b+GAP&&r>a-GAP)need=Math.max(need,b+GAP-l)})});
+      if(!need)break;left+=need;
+    }
+    rel.forEach(e=>{e.cx+=left;occAdd(e.y,e.cx-e.u.own/2,e.cx+e.u.own/2);all.push(e)});
+    return rel[0];
+  };
+  const placeLin=(L,want,y,tx,ty)=>{
+    own(L);let left=want-L.own/2,again=true;
+    while(again){again=false;for(const[a,b]of occ[y]||[])if(left<b+GAP&&left+L.own>a-GAP){left=b+GAP;again=true}}
+    const cx=left+L.own/2;occAdd(y,left,left+L.own);
+    const ent={u:L,cx,y,tx,ty,exK:[]};lins.push(ent);
+    let right=null;
+    (L.kids||[]).forEach(k=>{measure(k);const e=fitTree(k,right===null?cx:right+GAP+k.w/2,y+STEP);ent.exK.push(e.cx);right=e.cx+k.w/2});
+    if(L.up)placeLin(L.up,cardX(L,cx,"m"),y-STEP,cardX(L,cx,"m"),y);
+    if(L.sp&&L.sp.par)placeLin(L.sp.par,cardX(L,cx,"s"),y-STEP,cardX(L,cx,"s"),y);
+  };
+  for(let i=0;i<all.length;i++){
+    const{u,cx,y}=all[i];
+    if(!u.parent&&u.up)placeLin(u.up,cardX(u,cx,"m"),y-STEP,cardX(u,cx,"m"),y);
+    if(u.sp&&u.sp.par)placeLin(u.sp.par,cardX(u,cx,"s"),y-STEP,cardX(u,cx,"s"),y);
+  }
   all.forEach(({u,cx,y})=>{
     drawUnit(u,cx,y);
-    if(u.kids.length){
-      const my=y+38,by=y+CH+VG/2,ks=u.kids.map(k=>({k,x:all.find(a=>a.u===k).cx}));
-      const any=!!set&&inU(u)&&ks.some(o=>has(o.k,"m"));
-      el("line",{x1:cx,y1:u.sp?my+9:y+CH,x2:cx,y2:by,class:cls(any)},lines);
-      if(ks.length>1)el("line",{x1:Math.min(...ks.map(o=>o.x)),y1:by,x2:Math.max(...ks.map(o=>o.x)),y2:by,class:cls(any)},lines);
-      ks.forEach(o=>el("line",{x1:o.x,y1:by,x2:o.x,y2:y+CH+VG,class:cls(!!set&&inU(u)&&has(o.k,"m"))},lines));
-    }
+    u.kids.forEach(k=>{const e=all.find(a=>a.u===k);link(cx,y,!!u.sp,e.cx,y+STEP)});
   });
-  lins.forEach(({u,cx,y,tx,ty,ck})=>{
-    drawUnit(u,cx,y);
-    const sy=u.sp?y+47:y+CH,by=y+CH+VG/2,c=cls(!!set&&inU(u)&&set.has(ck));
-    el("line",{x1:cx,y1:sy,x2:cx,y2:by,class:c},lines);
-    if(tx!==cx)el("line",{x1:cx,y1:by,x2:tx,y2:by,class:c},lines);
-    el("line",{x1:tx,y1:by,x2:tx,y2:ty,class:c},lines);
+  lins.forEach(({u,cx,y,tx,ty,exK})=>{
+    drawUnit(u,cx,y);link(cx,y,!!u.sp,tx,ty);
+    exK.forEach(kx=>link(cx,y,!!u.sp,kx,y+STEP));
   });
   showPanel();
   if(!keepView)fit();else applyView();
 }
-function select(k){sel=k;render(true)}
-function clearSel(){sel=null;render(true)}
+function select(k){sel=k;render(false)}
+function clearSel(){sel=null;render(false)}
 function showPanel(){
   const P=$("panel");
   if(!sel){P.hidden=true;return}
   const p=reg[sel],R=relations(p);P.hidden=false;
-  $("pt").textContent=p.n+(p.dead?" ✝":"");$("ps").textContent=sentence(p);
+  $("pt").textContent=p.n;$("ps").textContent=sentence(p);
   const box=$("prel");box.textContent="";
   const grp=(title,keys,fn)=>{if(!keys.length)return;
     const d=document.createElement("div");d.className="grp";
     const h=document.createElement("h3");h.textContent=title;d.appendChild(h);
-    keys.forEach(k=>{const b=document.createElement("button");b.className="chipb";b.textContent=fn(reg[k])+": "+reg[k].n+(reg[k].dead?" ✝":"");b.onclick=()=>select(k);d.appendChild(b)});
+    keys.forEach(k=>{const b=document.createElement("button");b.className="chipb";b.textContent=fn(reg[k])+": "+reg[k].n;b.onclick=()=>select(k);d.appendChild(b)});
     box.appendChild(d)};
   grp("Spouse",R.spouse,q=>spouseLbl(q.u,q.g));
   R.anc.forEach((ks,i)=>grp(ancTitle(i),ks,q=>ancLbl(i,q.g)));
@@ -295,7 +317,8 @@ function showPanel(){
 }
 $("pclose").onclick=clearSel;
 $("pedit").onclick=()=>edit(reg[sel].u);
-$("pmode").onchange=e=>{mode=e.target.value;render(true)};
+$("pall").onclick=clearSel;
+addEventListener("keydown",e=>{if(e.key==="Escape"&&sel&&!dlg.open)clearSel()});
 svg.addEventListener("click",e=>{if(!moved&&sel&&!e.target.closest(".card"))clearSel()});
 function fit(){
   const b=vp.getBBox();if(!b.width)return;
@@ -349,7 +372,7 @@ function edit(u){
   $("n1").value=u.n;$("g1").value=u.g;$("d1").checked=!!u.dead;
   $("n2").value=u.sp?u.sp.n:"";$("g2").value=u.sp?u.sp.g:(u.g==="M"?"F":"M");
   $("d2").checked=!!(u.sp&&u.sp.dead);$("ms").value=u.ms||"married";
-  $("addKid").style.display=u.kind?"none":"";
+  $("addKid").style.display="";
   $("addP1").style.display=(u.parent||u.up)?"none":"";
   $("addP2").style.display=(u.sp&&u.sp.par)?"none":"";
   $("delBtn").style.display=u.isNew?"none":"";
@@ -360,7 +383,7 @@ $("cancel").onclick=()=>{dlg.close();render(true)};
 $("addKid").onclick=()=>{
   applyFields();
   const k={id:nextId++,n:"New child",g:"M",sp:null,kids:[]};
-  cur.kids.push(k);save();render(true);dlg.close();edit(k);
+  (cur.kids=cur.kids||[]).push(k);save();render(true);dlg.close();edit(k);
 };
 function addParents(w){
   applyFields();
