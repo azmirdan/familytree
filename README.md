@@ -1,10 +1,17 @@
 FamilyTree
-A simple family tree website. Add unlimited generations: grandparents, parents, children, spouses, grandchildren and more.
-Blue icon for men, orange icon for women
-Click any card to edit, add a spouse, add a child or delete
-Zoom with the mouse wheel, pinch, or the Zoom buttons; drag to pan
-Data is saved in your browser. Use Save file / Open file to back up or move it
+A simple interactive family tree website with unlimited parent-child links and up to four spouses per person.
+
+Features
+- When adding a person, choose whether they are a parent, child, or spouse of an existing person, or add them as a new starting person.
+- Add people, parents and children without a generation limit.
+- Add up to four spouses per person, including a person already in the tree.
+- Select a person without hiding the rest of the tree; up to four ancestor generations are highlighted.
+- Record birth and death dates for each person.
+- Zoom, pan, fit to screen, and save/open JSON backups.
+- Existing nested family-tree JSON data is migrated when opened or loaded in the browser.
+
 Run
-Open `index.html` in a browser. No build step.
+Open `index.html` in a browser. No build step is required.
+
 Publish with GitHub Pages
 Repository Settings → Pages → Deploy from a branch → main / (root).
