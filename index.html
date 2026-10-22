@@ -70,6 +70,7 @@ body.sum .treeonly,body.sum #panel{display:none}
 <body>
 <div id="bar">
   <h1>Family Tree</h1>
+  <span id="note" style="font-size:13px;max-width:360px"></span>
   <button id="tTree" class="tab on">Family Tree</button><button id="tSum" class="tab">Summary</button>
   <button id="addRoot" class="pri treeonly">Add person</button>
   <button id="zin" class="treeonly">Zoom +</button>
@@ -145,13 +146,14 @@ function migrate(roots){
   roots.forEach(r=>build(r,null));
   return out;
 }
-let D,P={},M={},nid=1,sel=null,cur=null;
+let D,P={},M={},nid=1,sel=null,cur=null,hasLocal=false;
 try{
   const s2=localStorage.getItem(KEY),s1=localStorage.getItem("familytree.v1");
+  hasLocal=!!(s2||s1);
   D=s2?JSON.parse(s2):s1?migrate(JSON.parse(s1)):null;
 }catch(e){}
 if(!D||!D.persons)D=migrate(SAMPLE);
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
+const save=()=>{D.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
 function reindex(){P={};M={};D.persons.forEach(p=>{P[p.id]=p;nid=Math.max(nid,p.id+1)});D.marriages.forEach(m=>{M[m.id]=m;nid=Math.max(nid,m.id+1)})}
 
 // ---------- relationships ----------
@@ -481,6 +483,7 @@ $("addRoot").onclick=()=>{
   const p={id:nid++,n:"New person",g:"M",fam:null};D.persons.push(p);save();render(true);edit(P[p.id]);
 };
 $("exp").onclick=()=>{
+  save();
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:"application/json"}));
   a.download="family-tree.json";a.click();
@@ -521,7 +524,19 @@ function showTab(t){
   if(sm)renderSummary();else render(true);
 }
 $("tTree").onclick=()=>showTab("tree");$("tSum").onclick=()=>showTab("sum");
-render(false);
+// Load family-tree.json from the repo (same folder as index.html) when it is newer than this browser's copy
+const note=t=>{$("note").textContent=t};
+async function boot(){
+  let repo=null;
+  try{const r=await fetch("family-tree.json?v="+Date.now(),{cache:"no-store"});if(r.ok)repo=await r.json()}catch(e){}
+  if(!repo||!repo.persons||!repo.marriages)return;
+  const ru=repo.updated||0,lu=D.updated||0;
+  if(!hasLocal||ru>lu){
+    D=repo;sel=null;try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}
+    render(false);note("Loaded from family-tree.json in GitHub.");setTimeout(()=>note(""),6000);
+  }else if(lu>ru)note("This browser has changes that are not in GitHub yet. Click Save file, then upload family-tree.json to your repo.");
+}
+render(false);boot();
 </script>
 </body>
 </html>
