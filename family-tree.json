@@ -1,0 +1,286 @@
+{
+  "persons": [
+    {
+      "id": 1,
+      "n": "Abu",
+      "g": "M",
+      "fam": null
+    },
+    {
+      "id": 3,
+      "n": "Hj Mat Abu",
+      "g": "M",
+      "fam": 2
+    },
+    {
+      "id": 4,
+      "n": "Hjh Haning",
+      "g": "F",
+      "fam": null
+    },
+    {
+      "id": 6,
+      "n": "Hj Hazizan Hj Mat",
+      "g": "M",
+      "fam": 5,
+      "dead": true
+    },
+    {
+      "id": 7,
+      "n": "Hjh Zaharah Hj Mat Ali",
+      "g": "F",
+      "fam": 10
+    },
+    {
+      "id": 8,
+      "n": "Hj Mat Ali",
+      "g": "M",
+      "fam": null,
+      "dead": true
+    },
+    {
+      "id": 9,
+      "n": "Esah",
+      "g": "F",
+      "fam": null,
+      "dead": true
+    },
+    {
+      "id": 11,
+      "n": "Abu Hassan",
+      "g": "M",
+      "fam": 10,
+      "dead": true
+    },
+    {
+      "id": 12,
+      "n": "Maimunah",
+      "g": "F",
+      "fam": null
+    },
+    {
+      "id": 15,
+      "n": "Hjh Naiimah Hj Hazizan",
+      "g": "F",
+      "fam": 14,
+      "born": "1958"
+    },
+    {
+      "id": 16,
+      "n": "Hj Muhamad Dan Mahat",
+      "g": "M",
+      "fam": 19,
+      "born": "1955"
+    },
+    {
+      "id": 17,
+      "n": "Mahat Baba",
+      "g": "M",
+      "fam": null,
+      "dead": true
+    },
+    {
+      "id": 18,
+      "n": "Munah Ab Rahman",
+      "g": "F",
+      "fam": null,
+      "dead": true
+    },
+    {
+      "id": 21,
+      "n": "Azmir Dan",
+      "g": "M",
+      "fam": 20,
+      "born": "1982"
+    },
+    {
+      "id": 22,
+      "n": "Azmahani Mohamad Shahbudin",
+      "g": "F",
+      "fam": 40,
+      "born": "1983"
+    },
+    {
+      "id": 24,
+      "n": "Anisa Sofea",
+      "g": "F",
+      "fam": 23,
+      "born": "2008"
+    },
+    {
+      "id": 26,
+      "n": "Anis Syahmina",
+      "g": "F",
+      "fam": 23,
+      "born": "2010"
+    },
+    {
+      "id": 30,
+      "n": "Azfar Dan",
+      "g": "M",
+      "fam": 20
+    },
+    {
+      "id": 32,
+      "n": "Farah Fasihah",
+      "g": "F",
+      "fam": 20
+    },
+    {
+      "id": 34,
+      "n": "Mahzuz Dan",
+      "g": "M",
+      "fam": 20
+    },
+    {
+      "id": 36,
+      "n": "Farah Nabihah",
+      "g": "F",
+      "fam": 20
+    },
+    {
+      "id": 38,
+      "n": "Mohamad Shahbudin",
+      "g": "M",
+      "fam": null,
+      "born": "1950"
+    },
+    {
+      "id": 39,
+      "n": "Kalsom Ngah Dikon",
+      "g": "F",
+      "fam": null,
+      "born": "1954"
+    },
+    {
+      "id": 44,
+      "n": "Auni Suhaila",
+      "g": "F",
+      "fam": 23,
+      "born": "2017"
+    },
+    {
+      "id": 45,
+      "n": "Nor Aini",
+      "g": "F",
+      "fam": 10,
+      "dead": true
+    },
+    {
+      "id": 46,
+      "n": "Ahmat",
+      "g": "M",
+      "fam": null,
+      "dead": true
+    },
+    {
+      "id": 53,
+      "n": "Zakiah",
+      "g": "F",
+      "fam": 10
+    },
+    {
+      "id": 54,
+      "n": "Zainal Abidin",
+      "g": "M",
+      "fam": null
+    }
+  ],
+  "marriages": [
+    {
+      "id": 2,
+      "a": 1,
+      "b": null
+    },
+    {
+      "id": 5,
+      "a": 3,
+      "b": 4
+    },
+    {
+      "id": 10,
+      "a": 8,
+      "b": 9
+    },
+    {
+      "id": 13,
+      "a": 11,
+      "b": 12
+    },
+    {
+      "id": 14,
+      "a": 6,
+      "b": 7
+    },
+    {
+      "id": 19,
+      "a": 17,
+      "b": 18
+    },
+    {
+      "id": 20,
+      "a": 15,
+      "b": 16
+    },
+    {
+      "id": 23,
+      "a": 21,
+      "b": 22
+    },
+    {
+      "id": 25,
+      "a": 24,
+      "b": null
+    },
+    {
+      "id": 27,
+      "a": 26,
+      "b": null
+    },
+    {
+      "id": 31,
+      "a": 30,
+      "b": null
+    },
+    {
+      "id": 33,
+      "a": 32,
+      "b": null
+    },
+    {
+      "id": 35,
+      "a": 34,
+      "b": null
+    },
+    {
+      "id": 37,
+      "a": 36,
+      "b": null
+    },
+    {
+      "id": 40,
+      "a": 38,
+      "b": 39
+    },
+    {
+      "id": 42,
+      "a": 22,
+      "b": null
+    },
+    {
+      "id": 47,
+      "a": 45,
+      "b": 46
+    },
+    {
+      "id": 49,
+      "a": 8,
+      "b": null
+    },
+    {
+      "id": 55,
+      "a": 53,
+      "b": 54
+    }
+  ]
+}
