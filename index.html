@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Family Tree</title>
 <style>
-:root{--bg:#f1eeea;--ink:#2b2b2b;--line:#8a8a8a;--male:#0f7a94;--female:#e8641b;--card:#fff;--bar:#fff;--bd:#d9d4cc;--hl:#d19a1a}
+:root{--bg:#f1eeea;--ink:#2b2b2b;--line:#8a8a8a;--male:#0f7a94;--female:#e8641b;--card:#fff;--bar:#fff;--bd:#d9d4cc}
 @media (prefers-color-scheme:dark){:root{--bg:#1d1f21;--ink:#ececec;--line:#777;--card:#2a2d30;--bar:#2a2d30;--bd:#44484c}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -21,17 +21,18 @@ button.del{color:#c0392b}
 #svg.drag{cursor:grabbing}
 .card rect{fill:var(--card);stroke:var(--bd);stroke-width:1.5}
 .card:hover rect{stroke:var(--male);stroke-width:2.5}
+.card.sel rect{stroke:var(--ink);stroke-width:3}
 .card{cursor:pointer}
 .card text{fill:var(--ink);font-size:13px;text-anchor:middle}
+.card text.ct{fill:#fff;font-size:11px}
+.card text.life{font-size:11px;opacity:.75}
 .ln{stroke:var(--line);stroke-width:3;fill:none}
+.ln.div{stroke:#c0392b;stroke-dasharray:4 6}
+.ln.sep{stroke-dasharray:9 6}
+.cut{stroke:#c0392b;stroke-width:3}
 .ring{fill:var(--bg);stroke:var(--line);stroke-width:3}
+.mlbl{font-size:10px;text-anchor:middle;fill:var(--ink);paint-order:stroke;stroke:var(--bg);stroke-width:3px}
 #empty{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;text-align:center;line-height:1.6}
-dialog{border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--ink);padding:20px;width:min(380px,92vw)}
-dialog::backdrop{background:rgba(0,0,0,.4)}
-fieldset{border:1px solid var(--bd);border-radius:8px;margin:0 0 12px;padding:10px 12px}
-label{display:block;font-size:13px;margin:6px 0 2px}
-input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 #panel{position:fixed;right:12px;top:70px;width:300px;max-height:calc(100% - 90px);overflow:auto;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;z-index:4}
 #panel[hidden]{display:none}
 .ph{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
@@ -40,26 +41,25 @@ input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px
 .grp h3{font-size:13px;margin:12px 0 4px}
 .chipb{display:block;width:100%;text-align:left;margin:3px 0;padding:5px 9px;font-size:13px}
 @media(max-width:640px){#panel{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:42vh}}
-.card.dim{opacity:.22}
-.card.sel rect{stroke:var(--ink);stroke-width:3}
-.ln.hl{stroke:var(--hl);stroke-width:5}
-.ln.dim{opacity:.2}
-.card text.ct{fill:#fff;font-size:11px}
-.ln.div{stroke:#c0392b;stroke-dasharray:4 6}
-.ln.sep{stroke-dasharray:9 6}
-.cut{stroke:#c0392b;stroke-width:3}
-.mlbl{font-size:10px;text-anchor:middle;fill:var(--ink)}
-.card text.cr{font-size:15px;text-anchor:middle}
+dialog{border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--ink);padding:20px;width:min(440px,94vw);max-height:92vh;overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+fieldset{border:1px solid var(--bd);border-radius:8px;margin:0 0 12px;padding:10px 12px}
+label{display:block;font-size:13px;margin:6px 0 2px}
+input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
 .chk{display:flex;align-items:center;gap:6px}
 .chk input{width:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.mrow select{width:auto}
+.mrow button{padding:4px 8px;font-size:13px}
 </style>
 </head>
 <body>
 <div id="bar">
   <h1>Family Tree</h1>
   <button id="addRoot" class="pri">Add person</button>
-  <button id="zin" title="Zoom in">Zoom +</button>
-  <button id="zout" title="Zoom out">Zoom −</button>
+  <button id="zin">Zoom +</button>
+  <button id="zout">Zoom −</button>
   <button id="fit">Fit to screen</button>
   <button id="exp">Save file</button>
   <button id="imp">Open file</button>
@@ -73,27 +73,32 @@ input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px
   <div class="ph"><h2 id="pt"></h2><button id="pclose" aria-label="Close">✕</button></div>
   <p id="ps"></p>
   <div id="prel"></div>
-  <div class="row"><button id="pedit" class="pri">Edit this person</button>
-    <button id="pall">Show whole tree</button></div>
+  <div class="row"><button id="pedit" class="pri">Edit this person</button><button id="pall">Show whole tree</button></div>
 </aside>
+
 <dialog id="dlg">
   <form method="dialog" id="frm">
     <fieldset><legend id="lg1">Person</legend>
       <label for="n1">Name</label><input id="n1" required>
       <label for="g1">Gender</label><select id="g1"><option value="M">Male</option><option value="F">Female</option></select>
+      <label for="b1">Birth date (YYYY-MM-DD, or only the year)</label><input id="b1" placeholder="e.g. 1975-03-21 or 1975" inputmode="numeric">
       <label class="chk"><input type="checkbox" id="d1"> Deceased</label>
+      <label for="x1">Death date (YYYY-MM-DD, or only the year)</label><input id="x1" placeholder="e.g. 2019-08-02 or 2019" inputmode="numeric">
     </fieldset>
-    <fieldset><legend>Spouse (optional)</legend>
-      <label for="n2">Name</label><input id="n2" placeholder="Leave empty if none">
-      <label for="g2">Gender</label><select id="g2"><option value="F">Female</option><option value="M">Male</option></select>
-      <label for="ms">Marriage status</label><select id="ms"><option value="married">Married</option><option value="separated">Separated</option><option value="divorced">Divorced</option></select>
-      <label class="chk"><input type="checkbox" id="d2"> Deceased</label>
+    <fieldset><legend>Husband / wife (up to 4)</legend>
+      <div id="mlist"></div>
+      <button type="button" id="addSp">Add spouse</button>
+      <div id="spForm" hidden>
+        <label for="spSel">Who is the spouse?</label><select id="spSel"></select>
+        <label for="spN">Name (new person)</label><input id="spN">
+        <label for="spG">Gender (new person)</label><select id="spG"><option value="F">Female</option><option value="M">Male</option></select>
+        <div class="row"><button type="button" id="spOk" class="pri">Add</button></div>
+      </div>
     </fieldset>
     <div class="row">
-      <button type="submit" class="pri" value="save">Save</button>
-      <button type="button" id="addKid">Add child</button>
-      <button type="button" id="addP1">Add parents of this person</button>
-      <button type="button" id="addP2">Add parents of spouse</button>
+      <button type="submit" class="pri">Save</button>
+      <button type="button" id="addKid">Add child (other parent unknown)</button>
+      <button type="button" id="addPar">Add parents</button>
       <button type="button" id="delBtn" class="del">Delete</button>
       <button type="button" id="cancel">Cancel</button>
     </div>
@@ -101,225 +106,218 @@ input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px
 </dialog>
 
 <script>
-const KEY="familytree.v1";
+const KEY="familytree.v2",CW=130,CH=150,SP=60,GAP=28,VG=90,NS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
 const SAMPLE=[{id:1,n:"Abu",g:"M",sp:null,kids:[
  {id:2,n:"Hj Mat Abu",g:"M",sp:{n:"Hjh Haning",g:"F"},kids:[
   {id:3,n:"Hj Hazizan Hj Mat",g:"M",sp:{n:"Hjh Zaharah Hj Mat Ali",g:"F"},kids:[
    {id:4,n:"Hjh Naiimah Hj Hazizan",g:"F",sp:{n:"Hj Muhamad Dan Mahat",g:"M"},kids:[
-    {id:5,n:"Azmir Dan",g:"M",sp:null,kids:[]},
-    {id:6,n:"Azfar Dan",g:"M",sp:null,kids:[]},
-    {id:7,n:"Farah Fasihah",g:"F",sp:null,kids:[]},
-    {id:8,n:"Mahzuz Dan",g:"M",sp:null,kids:[]},
-    {id:9,n:"Farah Nabihah",g:"F",sp:null,kids:[]}]}]}]}]}];
+    {id:5,n:"Azmir Dan",g:"M",kids:[]},{id:6,n:"Azfar Dan",g:"M",kids:[]},{id:7,n:"Farah Fasihah",g:"F",kids:[]},
+    {id:8,n:"Mahzuz Dan",g:"M",kids:[]},{id:9,n:"Farah Nabihah",g:"F",kids:[]}]}]}]}]}];
 
-let roots, nextId=100, cur=null, curParent=null;
-try{roots=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!Array.isArray(roots))roots=JSON.parse(JSON.stringify(SAMPLE));
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(roots))}catch(e){}};
-
-const CW=130,CH=132,SP=60,GAP=28,VG=80,NS="http://www.w3.org/2000/svg";
-const $=id=>document.getElementById(id);
-const svg=$("svg"),vp=$("vp");
-let view={k:1,x:0,y:0};
-const applyView=()=>vp.setAttribute("transform",`translate(${view.x} ${view.y}) scale(${view.k})`);
-const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
-
-function measure(u){
-  const own=u.sp?2*CW+SP:CW;
-  u.kidsW=u.kids.reduce((s,c)=>s+measure(c),0)+GAP*Math.max(0,u.kids.length-1);
-  u.w=Math.max(own,u.kidsW);u.own=own;return u.w+0;
+// convert the older tree format (v1) to the people + marriages model
+function migrate(roots){
+  const out={persons:[],marriages:[]};let n=1;
+  const addP=(o,fam)=>{const p={id:n++,n:o.n,g:o.g,fam:fam||null};if(o.dead)p.dead=true;out.persons.push(p);return p};
+  const build=(u,fam)=>{
+    const a=addP(u,fam),sp=u.sp?addP(u.sp,null):null;
+    if(u.up)a.fam=build(u.up,null).m.id;
+    if(sp&&u.sp.par)sp.fam=build(u.sp.par,null).m.id;
+    const m={id:n++,a:a.id,b:sp?sp.id:null};if(u.ms)m.st=u.ms;out.marriages.push(m);
+    (u.kids||[]).forEach(k=>build(k,m.id));
+    return{a,m};
+  };
+  roots.forEach(r=>build(r,null));
+  return out;
 }
-function place(u,left,y,list){
-  const cx=left+u.w/2;list.push({u,cx,y});
-  let x=left+(u.w-u.kidsW)/2;
-  u.kids.forEach(c=>{place(c,x,y+CH+VG,list);x+=c.w+GAP});
-}
-let sel=null,mode="all",reg={};
-const keyOf=(u,w)=>u.id+(w==="s"?"s":"m");
+let D,P={},M={},nid=1,sel=null,cur=null;
+try{
+  const s2=localStorage.getItem(KEY),s1=localStorage.getItem("familytree.v1");
+  D=s2?JSON.parse(s2):s1?migrate(JSON.parse(s1)):null;
+}catch(e){}
+if(!D||!D.persons)D=migrate(SAMPLE);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
+function reindex(){P={};M={};D.persons.forEach(p=>{P[p.id]=p;nid=Math.max(nid,p.id+1)});D.marriages.forEach(m=>{M[m.id]=m;nid=Math.max(nid,m.id+1)})}
+
+// ---------- relationships ----------
+const uniq=a=>[...new Set(a)];
 const gl=(g,m,f)=>g==="F"?f:m;
 const cap=t=>t[0].toUpperCase()+t.slice(1);
+const marr=p=>D.marriages.filter(m=>m.a===p.id||m.b===p.id);
+const other=(m,p)=>P[m.a===p.id?m.b:m.a];
+const kidsOf=m=>D.persons.filter(c=>c.fam===m.id);
+const kids=p=>uniq(marr(p).flatMap(kidsOf));
+const spouses=p=>uniq(marr(p).map(m=>other(m,p)).filter(Boolean));
+const parents=p=>{const m=M[p.fam];return m?[P[m.a],P[m.b]].filter(Boolean):[]};
+function ancestors(p,max){const out=[];let c=[p];for(let i=0;i<max;i++){c=uniq(c.flatMap(parents));if(!c.length)break;out.push(c)}return out}
+function rel(p){
+  const R={sp:spouses(p),anc:ancestors(p,30),sib:[],desc:[]},m=M[p.fam];
+  if(m)R.sib=kidsOf(m).filter(c=>c!==p);
+  let c=kids(p);while(c.length&&R.desc.length<30){R.desc.push(c);c=uniq(c.flatMap(kids))}
+  return R;
+}
 const ancLbl=(i,g)=>i===0?gl(g,"Father","Mother"):i===1?cap(gl(g,"grandfather","grandmother")):"Great-"+"great-".repeat(i-2)+gl(g,"grandfather","grandmother");
 const descLbl=(i,g)=>i===0?gl(g,"Son","Daughter"):i===1?gl(g,"Grandson","Granddaughter"):"Great-"+"great-".repeat(i-2)+gl(g,"grandson","granddaughter");
 const ancTitle=i=>i===0?"Parents":i===1?"Grandparents":"Great-"+"great-".repeat(i-2)+"grandparents";
 const descTitle=i=>i===0?"Children":i===1?"Grandchildren":"Great-"+"great-".repeat(i-2)+"grandchildren";
-const spouseLbl=(u,g)=>u.ms==="divorced"?gl(g,"Ex-husband","Ex-wife"):u.ms==="separated"?gl(g,"Separated husband","Separated wife"):gl(g,"Husband","Wife");
-const msTxt=ms=>ms==="divorced"?"is divorced from":ms==="separated"?"is separated from":"is married to";
-const defP=(o,k,v)=>Object.defineProperty(o,k,{value:v,writable:true,enumerable:false,configurable:true});
-// parents of the in-law side ("par" on a spouse) and of a top person ("up") are stored as linked units
-function idxLin(owner,kind){
-  const L=kind==="par"?(owner.sp&&owner.sp.par):owner.up;if(!L)return;
-  defP(L,"kind",kind);defP(L,"owner",owner);defP(L,"child",keyOf(owner,kind==="par"?"s":"m"));defP(L,"parent",null);index(L.kids||[],L);
-  nextId=Math.max(nextId,L.id+1);idxLin(L,"up");idxLin(L,"par");
-}
-function index(list,par){list.forEach(u=>{defP(u,"parent",par);nextId=Math.max(nextId,u.id+1);idxLin(u,"up");idxLin(u,"par");index(u.kids,u)})}
-function buildReg(){reg={};
-  const addU=u=>{reg[keyOf(u,"m")]={u,w:"m",n:u.n,g:u.g,dead:u.dead};
-    if(u.sp)reg[keyOf(u,"s")]={u,w:"s",n:u.sp.n,g:u.sp.g,dead:u.sp.dead};
-    if(u.up)w(u.up);if(u.sp&&u.sp.par)w(u.sp.par)};
-  const w=u=>{addU(u);(u.kids||[]).forEach(w)};roots.forEach(w)}
-const parU=(u,w)=>w==="m"?(u.parent||u.up||null):((u.sp&&u.sp.par)||null);
-function relations(p){
-  const R={anc:[],sib:[],desc:[],descSp:[],spouse:[]},u=p.u,pu=parU(u,p.w);
-  const ks=x=>[keyOf(x,"m"),...(x.sp?[keyOf(x,"s")]:[])];
-  let up=[pu].filter(Boolean);
-  while(up.length){R.anc.push(up.flatMap(ks));up=up.flatMap(x=>[parU(x,"m"),parU(x,"s")]).filter(Boolean)}
-  if(pu){R.sib=(pu.kids||[]).filter(k=>k!==u).map(k=>keyOf(k,"m"));if(pu.child&&pu.child!==keyOf(u,p.w))R.sib.push(pu.child)}
-  if(p.w==="m"){if(u.sp)R.spouse=[keyOf(u,"s")]}else R.spouse=[keyOf(u,"m")];
-  let lv=u.kids||[];
-  if(u.child){const cu=reg[u.child].u;R.desc.push([u.child,...lv.map(k=>keyOf(k,"m"))]);lv.forEach(k=>{if(k.sp)R.descSp.push(keyOf(k,"s"))});lv=[...(cu.kids||[]),...lv.flatMap(k=>k.kids)]}
-  while(lv.length){R.desc.push(lv.map(k=>keyOf(k,"m")));lv.forEach(k=>{if(k.sp)R.descSp.push(keyOf(k,"s"))});lv=lv.flatMap(k=>k.kids)}
-  return R;
-}
-function sentence(p){
-  const u=p.u,par=parU(u,p.w),H=gl(p.g,"He","She");
-  let t=par?`${p.n} is the ${gl(p.g,"son","daughter")} of ${par.n}${par.sp?" and "+par.sp.n:""}.`:`${p.n}'s parents are not recorded.`;
-  const o=p.w==="s"?{n:u.n,dead:u.dead}:u.sp?{n:u.sp.n,dead:u.sp.dead}:null;
-  if(o)t+=` ${H} ${msTxt(u.ms)} ${o.n}${o.dead?" (deceased)":""}.`;
-  if(p.dead)t+=` ${H} is deceased.`;
+const spLbl=(m,g)=>m.st==="divorced"?gl(g,"Ex-husband","Ex-wife"):m.st==="separated"?gl(g,"Separated husband","Separated wife"):gl(g,"Husband","Wife");
+const msTxt=st=>st==="divorced"?"is divorced from":st==="separated"?"is separated from":"is married to";
+function tagsFor(p){
+  const t={[p.id]:"Selected"},R=rel(p);
+  marr(p).forEach(m=>{const o=other(m,p);if(o)t[o.id]=spLbl(m,o.g)});
+  R.anc.slice(0,4).forEach((g,i)=>g.forEach(q=>t[q.id]=ancLbl(i,q.g)));
+  R.sib.forEach(q=>t[q.id]=gl(q.g,"Brother","Sister"));
+  R.desc.forEach((g,i)=>g.forEach(q=>t[q.id]=descLbl(i,q.g)));
+  kids(p).forEach(k=>spouses(k).forEach(q=>{if(!t[q.id])t[q.id]="Spouse"}));
   return t;
 }
-function highlight(p){
-  const R=relations(p),s=new Set([sel,...R.spouse]),t={[sel]:"Selected"};
-  R.spouse.forEach(k=>t[k]=spouseLbl(reg[k].u,reg[k].g));
-  if(mode==="all"||mode==="anc")R.anc.forEach((ks,i)=>ks.forEach(k=>{s.add(k);t[k]=ancLbl(i,reg[k].g)}));
-  if(mode==="all"||mode==="sib")R.sib.forEach(k=>{s.add(k);t[k]=gl(reg[k].g,"Brother","Sister")});
-  if(mode==="all"||mode==="desc"){R.desc.forEach((ks,i)=>ks.forEach(k=>{s.add(k);t[k]=descLbl(i,reg[k].g)}));R.descSp.forEach(k=>{s.add(k);t[k]="Spouse"})}
-  return{s,t};
+// ---------- dates and age ----------
+function pd(s){const m=/^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$/.exec((s||"").trim());return m?{y:+m[1],m:+m[2]||0,d:+m[3]||0}:null}
+const isDead=p=>!!(p.dead||p.died);
+function age(p){
+  const b=pd(p.born);if(!b)return null;
+  let e=pd(p.died);
+  if(!e){if(isDead(p))return null;const t=new Date();e={y:t.getFullYear(),m:t.getMonth()+1,d:t.getDate()}}
+  let a=e.y-b.y;if(b.m&&e.m&&(e.m<b.m||(e.m===b.m&&b.d&&e.d&&e.d<b.d)))a--;
+  return Math.max(0,a);
 }
-function person(parent,name,g,cx,y,key,set,tags){
-  const dead=reg[key].dead;
-  const c=el("g",{class:"card"+(set&&!set.has(key)?" dim":"")+(key===sel?" sel":""),tabindex:0,role:"button","aria-label":`Select ${name}`},parent);
-  c.setAttribute("transform",`translate(${cx-CW/2} ${y})`);
-  el("title",{},c).textContent=sentence(reg[key]);
+function life(p){
+  const a=age(p),b=pd(p.born),d=pd(p.died);
+  if(isDead(p))return b||d?(b?b.y:"?")+"–"+(d?d.y:"?")+(a!=null?" ("+a+")":""):"";
+  return b?"b. "+b.y+(a!=null?" · age "+a:""):"";
+}
+function sentence(p){
+  const H=gl(p.g,"He","She"),par=parents(p),a=age(p);
+  let t=par.length?`${p.n} is the ${gl(p.g,"son","daughter")} of ${par.map(q=>q.n).join(" and ")}.`:`${p.n}'s parents are not recorded.`;
+  marr(p).forEach(m=>{const o=other(m,p);if(o)t+=` ${H} ${msTxt(m.st)} ${o.n}${isDead(o)?" (deceased)":""}.`});
+  if(p.born)t+=` Born ${p.born}${!isDead(p)&&a!=null?` (age ${a})`:""}.`;
+  if(isDead(p))t+=` ${H} is deceased${p.died?` (${p.died}${a!=null?`, aged ${a}`:""})`:""}.`;
+  return t;
+}
+// ---------- layout (people grouped by marriage, rows by generation) ----------
+function layout(PS,MS){
+  const par={},Mo={};PS.forEach(p=>par[p.id]=p.id);MS.forEach(m=>Mo[m.id]=m);
+  const find=x=>par[x]===x?x:(par[x]=find(par[x]));
+  MS.forEach(m=>{if(m.b)par[find(m.a)]=find(m.b)});
+  const cl={};PS.forEach(p=>{const r=find(p.id);(cl[r]=cl[r]||{ps:[],ms:[]}).ps.push(p)});
+  MS.forEach(m=>cl[find(m.a)].ms.push(m));
+  const C=Object.values(cl),cOf=id=>cl[find(id)];
+  C.forEach(c=>{
+    const deg=p=>c.ms.filter(m=>m.b&&(m.a===p.id||m.b===p.id)).length;
+    const s0=[...c.ps].sort((a,b)=>deg(b)-deg(a))[0],seen=new Set([s0.id]),q=[s0],seq=[];
+    while(q.length){const x=q.shift();seq.push(x);c.ms.forEach(m=>{if(!m.b)return;const o=m.a===x.id?m.b:m.b===x.id?m.a:0;if(o&&!seen.has(o)){seen.add(o);q.push(P[o])}})}
+    c.row=[seq[0]];seq.slice(1).forEach((p,i)=>i%2?c.row.unshift(p):c.row.push(p));
+    c.w=c.row.length*CW+(c.row.length-1)*SP;c.px={};c.row.forEach((p,i)=>c.px[p.id]=i*(CW+SP)+CW/2);c.x=0;c.g=0;
+  });
+  const E=[];
+  PS.forEach(k=>{const m=Mo[k.fam];if(m){const a=cOf(m.a),b=cOf(k.id);if(a!==b)E.push([a,b])}});
+  for(let i=0;i<C.length+2;i++){let ch=0;E.forEach(([a,b])=>{if(b.g<a.g+1){b.g=a.g+1;ch=1}});if(!ch)break}
+  for(let i=0;i<C.length;i++){let ch=0;C.forEach(c=>{
+    if(E.some(e=>e[1]===c))return;const o=E.filter(e=>e[0]===c);if(!o.length)return;
+    const t=Math.min(...o.map(e=>e[1].g))-1;if(t>c.g){c.g=t;ch=1}});if(!ch)break}
+  const G=Math.max(0,...C.map(c=>c.g)),rows=Array.from({length:G+1},()=>[]),seen=new Set();
+  const visit=c=>{if(seen.has(c))return;seen.add(c);rows[c.g].push(c);c.ms.forEach(m=>PS.forEach(k=>{if(k.fam===m.id)visit(cOf(k.id))}))};
+  C.filter(c=>!E.some(e=>e[1]===c)).forEach(visit);C.forEach(visit);
+  rows.forEach(r=>{let x=0;r.forEach(c=>{c.x=x+c.w/2;x+=c.w+GAP*2})});
+  const cx=(c,p)=>c.x-c.w/2+c.px[p.id];
+  const ringX=m=>m.b?(cx(cOf(m.a),P[m.a])+cx(cOf(m.b),P[m.b]))/2:cx(cOf(m.a),P[m.a]);
+  const settle=(row,des)=>{
+    const it=row.map((c,i)=>({c,d:des[i]??c.x})).sort((a,b)=>a.d-b.d);
+    const n=it.length,sep=i=>(it[i].c.w+it[i+1].c.w)/2+GAP*2,f=[],b=[];
+    it.forEach((t,i)=>f[i]=Math.max(t.d,i?f[i-1]+sep(i-1):-1e9));
+    for(let i=n-1;i>=0;i--)b[i]=Math.min(it[i].d,i<n-1?b[i+1]-sep(i):1e9);
+    const m=it.map((t,i)=>(f[i]+b[i])/2);
+    for(let i=1;i<n;i++)m[i]=Math.max(m[i],m[i-1]+sep(i-1));
+    it.forEach((t,i)=>{t.c.x=m[i];row[i]=t.c});
+  };
+  for(let k=0;k<10;k++){
+    const down=k%2===0;
+    (down?rows:[...rows].reverse()).forEach(row=>{
+      settle(row,row.map(c=>{
+        const v=[];
+        if(down)c.row.forEach(p=>{const m=Mo[p.fam];if(m)v.push(ringX(m)-c.px[p.id]+c.w/2)});
+        else c.ms.forEach(m=>{const ks=PS.filter(q=>q.fam===m.id);if(ks.length)v.push(ks.reduce((s,q)=>s+cx(cOf(q.id),q),0)/ks.length-(ringX(m)-c.x))});
+        return v.length?v.reduce((a,b)=>a+b)/v.length:undefined;
+      }));
+    });
+  }
+  const minX=Math.min(...C.map(c=>c.x-c.w/2));C.forEach(c=>c.x-=minX);
+  return{C,cOf,cx};
+}
+// ---------- drawing ----------
+const svg=$("svg"),vp=$("vp");
+let view={k:1,x:0,y:0};
+const applyView=()=>vp.setAttribute("transform",`translate(${view.x} ${view.y}) scale(${view.k})`);
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+function card(parent,p,pt,tags){
+  const dead=isDead(p),col=dead?"#8a8a8a":p.g==="F"?"var(--female)":"var(--male)";
+  const c=el("g",{class:"card"+(p.id===sel?" sel":""),tabindex:0,role:"button","aria-label":`Select ${p.n}`},parent);
+  c.setAttribute("transform",`translate(${pt.x-CW/2} ${pt.y})`);
+  el("title",{},c).textContent=sentence(p);
   el("rect",{width:CW,height:CH,rx:10},c);
-  const col=dead?"#8a8a8a":g==="F"?"var(--female)":"var(--male)";
   el("circle",{cx:CW/2,cy:38,r:28,fill:col},c);
   el("circle",{cx:CW/2,cy:30,r:9,fill:"#fff"},c);
-  if(g==="F")el("path",{d:`M${CW/2-12} 30 a12 12 0 0 1 24 0 v14 h-5 v-14 h-14 v14 h-5z`,fill:"#fff"},c);
+  if(p.g==="F")el("path",{d:`M${CW/2-12} 30 a12 12 0 0 1 24 0 v14 h-5 v-14 h-14 v14 h-5z`,fill:"#fff"},c);
   el("path",{d:`M${CW/2-17} 58 q0-15 17-15 q17 0 17 15z`,fill:"#fff"},c);
   const lines=[""];
-  name.split(" ").forEach(w=>{const l=lines[lines.length-1];if((l+" "+w).trim().length>17&&l)lines.push(w);else lines[lines.length-1]=(l+" "+w).trim()});
+  p.n.split(" ").forEach(w=>{const l=lines[lines.length-1];if((l+" "+w).trim().length>17&&l)lines.push(w);else lines[lines.length-1]=(l+" "+w).trim()});
   if(lines.length>2){lines.length=2;lines[1]+="…"}
   lines.forEach((t,i)=>{el("text",{x:CW/2,y:84+i*15},c).textContent=t});
-  if(tags[key]){
-    const w=tags[key].length*6.3+16;
-    el("rect",{x:(CW-w)/2,y:108,width:w,height:17,rx:8.5,fill:key===sel?"var(--ink)":col},c);
-    el("text",{x:CW/2,y:120,class:"ct"},c).textContent=tags[key];
-  }
-  c.addEventListener("click",e=>{e.stopPropagation();if(!moved)select(key)});
-  c.addEventListener("keydown",e=>{if(e.key==="Enter")select(key)});
+  const lf=life(p);if(lf)el("text",{x:CW/2,y:116,class:"life"},c).textContent=lf;
+  const tg=tags[p.id];
+  if(tg){const w=tg.length*6.3+16;
+    el("rect",{x:(CW-w)/2,y:123,width:w,height:17,rx:8.5,fill:p.id===sel?"var(--ink)":col},c);
+    el("text",{x:CW/2,y:135,class:"ct"},c).textContent=tg}
+  c.addEventListener("click",e=>{e.stopPropagation();if(!moved)select(p.id)});
+  c.addEventListener("keydown",e=>{if(e.key==="Enter")select(p.id)});
 }
 function render(keepView){
-  index(roots,null);buildReg();
-  if(sel&&!reg[sel])sel=null;
-  const tags=sel?highlight(reg[sel]).t:{},set=null;
+  reindex();
+  if(sel&&!P[sel])sel=null;
   vp.innerHTML="";
-  $("empty").style.display=roots.length?"none":"flex";
-  if(!roots.length){showPanel();return}
-  const STEP=CH+VG;
-  const lines=el("g",{},vp),cards=el("g",{},vp);
-  const own=v=>{v.own=v.sp?2*CW+SP:CW;return v.own};
-  const cardX=(u,cx,w)=>u.sp?(w==="m"?cx-u.own/2+CW/2:cx+u.own/2-CW/2):cx;
-  const link=(fx,fy,sp,tx,ty)=>{
-    const sy=sp?fy+47:fy+CH,by=fy+CH+VG/2;
-    el("line",{x1:fx,y1:sy,x2:fx,y2:by,class:"ln"},lines);
-    if(tx!==fx)el("line",{x1:fx,y1:by,x2:tx,y2:by,class:"ln"},lines);
-    el("line",{x1:tx,y1:by,x2:tx,y2:ty,class:"ln"},lines);
-  };
-  const drawUnit=(u,cx,y)=>{
-    const my=y+38;own(u);
-    if(u.sp){
-      const l=cx-u.own/2+CW/2,r=cx+u.own/2-CW/2,st=u.ms;
-      el("line",{x1:l,y1:my,x2:r,y2:my,class:"ln"+(st==="divorced"?" div":st==="separated"?" sep":"")},lines);
-      el("circle",{cx,cy:my,r:9,class:"ring"},lines);
-      if(st==="divorced")el("line",{x1:cx-8,y1:my+8,x2:cx+8,y2:my-8,class:"cut"},lines);
-      if(st)el("text",{x:cx,y:my+25,class:"mlbl"},lines).textContent=cap(st);
-      person(cards,u.n,u.g,l,y,keyOf(u,"m"),set,tags);
-      person(cards,u.sp.n,u.sp.g,r,y,keyOf(u,"s"),set,tags);
-    }else person(cards,u.n,u.g,cx,y,keyOf(u,"m"),set,tags);
-  };
+  $("empty").style.display=D.persons.length?"none":"flex";
+  let PS=D.persons,tags={};
   if(sel){
-    // focus view: the selected person (with spouse), their parents and their children only
-    const p=reg[sel],u=p.u;own(u);
-    drawUnit(u,0,0);
-    const pu=parU(u,p.w);
-    if(pu){own(pu);const tx=cardX(u,0,p.w);drawUnit(pu,tx,-STEP);link(tx,-STEP,!!pu.sp,tx,0)}
-    const kids=[...(u.kids||[])];let linked=null;
-    if(u.child){linked=reg[u.child].u;kids.unshift(linked)}
-    kids.forEach(own);
-    let left=-(kids.reduce((a,k)=>a+k.own,0)+GAP*Math.max(0,kids.length-1))/2;
-    kids.forEach(k=>{
-      const kcx=left+k.own/2;left+=k.own+GAP;
-      drawUnit(k,kcx,STEP);
-      link(0,0,!!u.sp,k===linked?cardX(k,kcx,u.child.endsWith("s")?"s":"m"):kcx,STEP);
-    });
-    showPanel();fit();return;
+    const p=P[sel],set=new Set([p]);
+    ancestors(p,4).forEach(g=>g.forEach(q=>set.add(q)));
+    spouses(p).forEach(q=>set.add(q));
+    kids(p).forEach(k=>{set.add(k);spouses(k).forEach(q=>set.add(q))});
+    PS=[...set];tags=tagsFor(p);
   }
-  let x=0;const all=[],occ={},lins=[];
-  roots.forEach(r=>{measure(r);place(r,x,0,all);x+=r.w+GAP*3});
-  const occAdd=(y,a,b)=>(occ[y]=occ[y]||[]).push([a,b]);
-  all.forEach(e=>occAdd(e.y,e.cx-e.u.own/2,e.cx+e.u.own/2));
-  const fitTree=(u,want,y)=>{
-    measure(u);const rel=[];place(u,0,y,rel);
-    let left=want-u.w/2;
-    for(let g=0;g<200;g++){
-      let need=0;
-      rel.forEach(e=>{const l=left+e.cx-e.u.own/2,r=left+e.cx+e.u.own/2;(occ[e.y]||[]).forEach(([a,b])=>{if(l<b+GAP&&r>a-GAP)need=Math.max(need,b+GAP-l)})});
-      if(!need)break;left+=need;
+  if(!PS.length){showPanel();return}
+  const ids=new Set(PS.map(p=>p.id)),MS=D.marriages.filter(m=>ids.has(m.a)&&(!m.b||ids.has(m.b)));
+  const mid=new Set(MS.map(m=>m.id));
+  PS=PS.map(p=>mid.has(p.fam)?p:Object.assign(Object.create(p),{fam:null}));
+  const byId={};PS.forEach(p=>byId[p.id]=p);
+  const L=layout(PS,MS),lines=el("g",{},vp),cards=el("g",{},vp),STEP=CH+VG,pos={},ringP={};
+  PS.forEach(p=>{const c=L.cOf(p.id);pos[p.id]={x:L.cx(c,p),y:c.g*STEP}});
+  L.C.forEach(c=>c.ms.forEach(m=>{
+    const a=pos[m.a],y=a.y;
+    if(!m.b){ringP[m.id]={x:a.x,sy:y+CH,y0:y};return}
+    const b=pos[m.b],ia=c.row.findIndex(q=>q.id===m.a),ib=c.row.findIndex(q=>q.id===m.b);
+    const st=m.st,cls="ln"+(st==="divorced"?" div":st==="separated"?" sep":""),rx=(a.x+b.x)/2;
+    let ry,sy;
+    if(Math.abs(ia-ib)===1){
+      ry=y+38;sy=ry+9;
+      el("line",{x1:Math.min(a.x,b.x)+CW/2,y1:ry,x2:Math.max(a.x,b.x)-CW/2,y2:ry,class:cls},lines);
+    }else{
+      c.bd=(c.bd||0)+1;ry=y+CH+2+c.bd*12;sy=ry+9;
+      el("path",{d:`M${a.x} ${y+CH}V${ry}H${b.x}V${y+CH}`,class:cls},lines);
     }
-    rel.forEach(e=>{e.cx+=left;occAdd(e.y,e.cx-e.u.own/2,e.cx+e.u.own/2);all.push(e)});
-    return rel[0];
-  };
-  const placeLin=(L,want,y,tx,ty)=>{
-    own(L);let left=want-L.own/2,again=true;
-    while(again){again=false;for(const[a,b]of occ[y]||[])if(left<b+GAP&&left+L.own>a-GAP){left=b+GAP;again=true}}
-    const cx=left+L.own/2;occAdd(y,left,left+L.own);
-    const ent={u:L,cx,y,tx,ty,exK:[]};lins.push(ent);
-    let right=null;
-    (L.kids||[]).forEach(k=>{measure(k);const e=fitTree(k,right===null?cx:right+GAP+k.w/2,y+STEP);ent.exK.push(e.cx);right=e.cx+k.w/2});
-    if(L.up)placeLin(L.up,cardX(L,cx,"m"),y-STEP,cardX(L,cx,"m"),y);
-    if(L.sp&&L.sp.par)placeLin(L.sp.par,cardX(L,cx,"s"),y-STEP,cardX(L,cx,"s"),y);
-  };
-  for(let i=0;i<all.length;i++){
-    const{u,cx,y}=all[i];
-    if(!u.parent&&u.up)placeLin(u.up,cardX(u,cx,"m"),y-STEP,cardX(u,cx,"m"),y);
-    if(u.sp&&u.sp.par)placeLin(u.sp.par,cardX(u,cx,"s"),y-STEP,cardX(u,cx,"s"),y);
-  }
-  all.forEach(({u,cx,y})=>{
-    drawUnit(u,cx,y);
-    u.kids.forEach(k=>{const e=all.find(a=>a.u===k);link(cx,y,!!u.sp,e.cx,y+STEP)});
+    el("circle",{cx:rx,cy:ry,r:9,class:"ring"},lines);
+    if(st==="divorced")el("line",{x1:rx-8,y1:ry+8,x2:rx+8,y2:ry-8,class:"cut"},lines);
+    if(st&&st!=="married")el("text",{x:rx,y:ry+24,class:"mlbl"},lines).textContent=cap(st);
+    ringP[m.id]={x:rx,sy,y0:y};
+  }));
+  PS.forEach(k=>{
+    const r=ringP[k.fam];if(!r)return;
+    const kp=pos[k.id],by=r.y0+CH+44+(k.fam%4)*8;
+    [[r.x,r.sy,r.x,by],[r.x,by,kp.x,by],[kp.x,by,kp.x,kp.y]].forEach(([x1,y1,x2,y2])=>{if(x1!==x2||y1!==y2)el("line",{x1,y1,x2,y2,class:"ln"},lines)});
   });
-  lins.forEach(({u,cx,y,tx,ty,exK})=>{
-    drawUnit(u,cx,y);link(cx,y,!!u.sp,tx,ty);
-    exK.forEach(kx=>link(cx,y,!!u.sp,kx,y+STEP));
-  });
+  PS.forEach(p=>card(cards,P[p.id],pos[p.id],tags));
   showPanel();
-  if(!keepView)fit();else applyView();
+  if(!keepView||sel)fit();else applyView();
 }
-function select(k){sel=k;render(false)}
-function clearSel(){sel=null;render(false)}
-function showPanel(){
-  const P=$("panel");
-  if(!sel){P.hidden=true;return}
-  const p=reg[sel],R=relations(p);P.hidden=false;
-  $("pt").textContent=p.n;$("ps").textContent=sentence(p);
-  const box=$("prel");box.textContent="";
-  const grp=(title,keys,fn)=>{if(!keys.length)return;
-    const d=document.createElement("div");d.className="grp";
-    const h=document.createElement("h3");h.textContent=title;d.appendChild(h);
-    keys.forEach(k=>{const b=document.createElement("button");b.className="chipb";b.textContent=fn(reg[k])+": "+reg[k].n;b.onclick=()=>select(k);d.appendChild(b)});
-    box.appendChild(d)};
-  grp("Spouse",R.spouse,q=>spouseLbl(q.u,q.g));
-  R.anc.forEach((ks,i)=>grp(ancTitle(i),ks,q=>ancLbl(i,q.g)));
-  grp("Brothers & sisters",R.sib,q=>gl(q.g,"Brother","Sister"));
-  R.desc.forEach((ks,i)=>grp(descTitle(i),ks,q=>descLbl(i,q.g)));
-  if(!box.children.length)box.textContent="No other relatives recorded yet.";
-}
-$("pclose").onclick=clearSel;
-$("pedit").onclick=()=>edit(reg[sel].u);
-$("pall").onclick=clearSel;
-addEventListener("keydown",e=>{if(e.key==="Escape"&&sel&&!dlg.open)clearSel()});
-svg.addEventListener("click",e=>{if(!moved&&sel&&!e.target.closest(".card"))clearSel()});
 function fit(){
   const b=vp.getBBox();if(!b.width)return;
   const W=innerWidth,H=innerHeight-60,m=40;
@@ -330,7 +328,33 @@ function zoomAt(f,px,py){
   const k=Math.min(4,Math.max(.1,view.k*f)),r=k/view.k;
   view.x=px-(px-view.x)*r;view.y=py-(py-view.y)*r;view.k=k;applyView();
 }
-// pan / zoom input
+// ---------- selection panel ----------
+function select(id){sel=id;render(false)}
+function clearSel(){sel=null;render(false)}
+function showPanel(){
+  const Pn=$("panel");
+  if(!sel){Pn.hidden=true;return}
+  const p=P[sel],R=rel(p);Pn.hidden=false;
+  $("pt").textContent=p.n;$("ps").textContent=sentence(p);
+  const box=$("prel");box.textContent="";
+  const grp=(title,list,fn)=>{if(!list.length)return;
+    const d=document.createElement("div");d.className="grp";
+    const h=document.createElement("h3");h.textContent=title;d.appendChild(h);
+    list.forEach(q=>{const b=document.createElement("button");b.className="chipb";
+      const lf=life(q);b.textContent=fn(q)+": "+q.n+(lf?"  ·  "+lf:"");b.onclick=()=>select(q.id);d.appendChild(b)});
+    box.appendChild(d)};
+  const mOf=q=>marr(p).find(m=>m.a===q.id||m.b===q.id);
+  grp("Husband / wife",R.sp,q=>spLbl(mOf(q),q.g));
+  R.anc.forEach((g,i)=>grp(ancTitle(i),g,q=>ancLbl(i,q.g)));
+  grp("Brothers & sisters",R.sib,q=>gl(q.g,"Brother","Sister"));
+  R.desc.forEach((g,i)=>grp(descTitle(i),g,q=>descLbl(i,q.g)));
+  if(!box.children.length)box.textContent="No other relatives recorded yet.";
+}
+$("pclose").onclick=clearSel;$("pall").onclick=clearSel;
+$("pedit").onclick=()=>edit(P[sel]);
+addEventListener("keydown",e=>{if(e.key==="Escape"&&sel&&!dlg.open)clearSel()});
+svg.addEventListener("click",e=>{if(!moved&&sel&&!e.target.closest(".card"))clearSel()});
+// ---------- pan / zoom ----------
 let moved=false,pts=new Map(),last=0;
 svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY)},{passive:false});
 svg.addEventListener("pointerdown",e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;if(pts.size==2)last=dist()});
@@ -339,84 +363,125 @@ svg.addEventListener("pointermove",e=>{
   if(pts.size==1){
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
     if(Math.abs(dx)+Math.abs(dy)>3){moved=true;svg.classList.add("drag");view.x+=dx;view.y+=dy;p.x=e.clientX;p.y=e.clientY;applyView()}
-  }else{
-    p.x=e.clientX;p.y=e.clientY;const d=dist(),c=mid();moved=true;
-    if(last)zoomAt(d/last,c.x,c.y);last=d;
-  }
+  }else{p.x=e.clientX;p.y=e.clientY;const d=dist(),c=mid2();moved=true;if(last)zoomAt(d/last,c.x,c.y);last=d}
 });
 const dist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
-const mid=()=>{const a=[...pts.values()];return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
-const up=e=>{pts.delete(e.pointerId);last=0;svg.classList.remove("drag");setTimeout(()=>moved=false,0)};
-svg.addEventListener("pointerup",up);svg.addEventListener("pointercancel",up);
+const mid2=()=>{const a=[...pts.values()];return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+const upH=e=>{pts.delete(e.pointerId);last=0;svg.classList.remove("drag");setTimeout(()=>moved=false,0)};
+svg.addEventListener("pointerup",upH);svg.addEventListener("pointercancel",upH);
 $("zin").onclick=()=>zoomAt(1.25,innerWidth/2,innerHeight/2);
 $("zout").onclick=()=>zoomAt(.8,innerWidth/2,innerHeight/2);
-$("fit").onclick=fit;
-addEventListener("resize",fit);
-
-// editing
+$("fit").onclick=fit;addEventListener("resize",fit);
+// ---------- editing ----------
 const dlg=$("dlg");
-function findParent(list,u,par){for(const x of list){if(x===u)return par;const r=findParent(x.kids,u,x);if(r!==undefined)return r}}
 function applyFields(){
   cur.n=$("n1").value.trim()||"Unnamed";cur.g=$("g1").value;
-  if($("d1").checked)cur.dead=true;else delete cur.dead;
-  const t=$("n2").value.trim();
-  if(t){
-    cur.sp=Object.assign(cur.sp||{},{n:t,g:$("g2").value});
-    if($("d2").checked)cur.sp.dead=true;else delete cur.sp.dead;
-    if($("ms").value==="married")delete cur.ms;else cur.ms=$("ms").value;
-  }else{cur.sp=null;delete cur.ms}
+  const b=$("b1").value.trim();if(b)cur.born=b;else delete cur.born;
+  if($("d1").checked){cur.dead=true;const x=$("x1").value.trim();if(x)cur.died=x;else delete cur.died}
+  else{delete cur.dead;delete cur.died}
 }
-function edit(u){
-  cur=u;
-  $("lg1").textContent=u.n||"Person";
-  $("n1").value=u.n;$("g1").value=u.g;$("d1").checked=!!u.dead;
-  $("n2").value=u.sp?u.sp.n:"";$("g2").value=u.sp?u.sp.g:(u.g==="M"?"F":"M");
-  $("d2").checked=!!(u.sp&&u.sp.dead);$("ms").value=u.ms||"married";
-  $("addKid").style.display="";
-  $("addP1").style.display=(u.parent||u.up)?"none":"";
-  $("addP2").style.display=(u.sp&&u.sp.par)?"none":"";
-  $("delBtn").style.display=u.isNew?"none":"";
-  dlg.showModal();
+function edit(p){
+  cur=p;$("lg1").textContent=p.n;
+  $("n1").value=p.n;$("g1").value=p.g;$("b1").value=p.born||"";
+  $("d1").checked=isDead(p);$("x1").value=p.died||"";
+  $("addPar").style.display=p.fam?"none":"";
+  $("spForm").hidden=true;buildM();dlg.showModal();
 }
-$("frm").addEventListener("submit",()=>{applyFields();delete cur.isNew;save();render(true)});
+function buildM(){
+  const box=$("mlist");box.textContent="";
+  const ms=marr(cur).filter(m=>m.b&&other(m,cur));
+  ms.forEach(m=>{
+    const o=other(m,cur),d=document.createElement("div");d.className="mrow";
+    const t=document.createElement("strong");t.textContent=o.n;d.appendChild(t);
+    const s=document.createElement("select");
+    [["married","Married"],["separated","Separated"],["divorced","Divorced"]].forEach(([v,l])=>s.add(new Option(l,v)));
+    s.value=m.st||"married";
+    s.onchange=()=>{if(s.value==="married")delete m.st;else m.st=s.value;save();render(true)};
+    d.appendChild(s);
+    [["Open",()=>{applyFields();save();edit(o)}],["Add child",()=>addChild(m)],["Remove",()=>unmarry(m)]].forEach(([l,f])=>{
+      const b=document.createElement("button");b.type="button";b.textContent=l;b.onclick=f;d.appendChild(b)});
+    box.appendChild(d);
+  });
+  if(!ms.length)box.textContent="No husband or wife yet.";
+  $("addSp").style.display=ms.length>=4?"none":"";
+}
+function addChild(m){
+  applyFields();
+  const k={id:nid++,n:"New child",g:"M",fam:m.id};
+  D.persons.push(k);save();render(true);dlg.close();edit(P[k.id]);
+}
+function unmarry(m){
+  const ks=kidsOf(m);
+  if(!confirm(ks.length?"Remove this marriage? Their children will no longer be linked to these parents.":"Remove this marriage?"))return;
+  ks.forEach(c=>c.fam=null);D.marriages.splice(D.marriages.indexOf(m),1);save();render(true);buildM();
+}
+$("frm").addEventListener("submit",e=>{
+  const bad=[["b1","birth"],["x1","death"]].find(([id])=>$(id).value.trim()&&!pd($(id).value));
+  if(bad){e.preventDefault();alert("Please type the "+bad[1]+" date as YYYY-MM-DD, or just the year.");return}
+  applyFields();save();render(true);
+});
+$("x1").oninput=()=>{if($("x1").value.trim())$("d1").checked=true};
 $("cancel").onclick=()=>{dlg.close();render(true)};
 $("addKid").onclick=()=>{
-  applyFields();
-  const k={id:nextId++,n:"New child",g:"M",sp:null,kids:[]};
-  (cur.kids=cur.kids||[]).push(k);save();render(true);dlg.close();edit(k);
+  let m=D.marriages.find(q=>q.a===cur.id&&!q.b);
+  if(!m){m={id:nid++,a:cur.id,b:null};D.marriages.push(m)}
+  addChild(m);
 };
-function addParents(w){
+$("addPar").onclick=()=>{
   applyFields();
-  const own=w==="m"?cur:cur.sp;
-  if(!own){alert("Enter the spouse's name first.");return}
-  const L={id:nextId++,n:"Father of "+own.n,g:"M",sp:{n:"Mother of "+own.n,g:"F"},kids:[]};
-  if(w==="m")cur.up=L;else cur.sp.par=L;
-  save();render(true);dlg.close();edit(L);
-}
-$("addP1").onclick=()=>addParents("m");
-$("addP2").onclick=()=>addParents("s");
+  const f={id:nid++,n:"Father of "+cur.n,g:"M",fam:null},mo={id:nid++,n:"Mother of "+cur.n,g:"F",fam:null},m={id:nid++,a:f.id,b:mo.id};
+  D.persons.push(f,mo);D.marriages.push(m);cur.fam=m.id;save();render(true);dlg.close();edit(P[f.id]);
+};
+const syncSp=()=>{const nw=$("spSel").value==="new";$("spN").disabled=$("spG").disabled=!nw};
+$("addSp").onclick=()=>{
+  const s=$("spSel");s.textContent="";s.add(new Option("New person","new"));
+  const mine=new Set([cur,...spouses(cur)]);
+  D.persons.filter(q=>!mine.has(q)).forEach(q=>s.add(new Option(q.n+(q.born?" ("+q.born+")":""),q.id)));
+  $("spN").value="";$("spG").value=cur.g==="M"?"F":"M";$("spForm").hidden=false;syncSp();
+};
+$("spSel").onchange=syncSp;
+$("spOk").onclick=()=>{
+  applyFields();
+  const isNew=$("spSel").value==="new";let o;
+  if(isNew){o={id:nid++,n:$("spN").value.trim()||"New spouse",g:$("spG").value,fam:null};D.persons.push(o)}
+  else o=P[$("spSel").value];
+  D.marriages.push({id:nid++,a:cur.id,b:o.id});save();render(true);
+  $("spForm").hidden=true;
+  if(isNew){dlg.close();edit(P[o.id])}else buildM();
+};
 $("delBtn").onclick=()=>{
-  if(!confirm(`Delete ${cur.n} and everyone linked above or below?`))return;
-  if(cur.kind){if(cur.kind==="par")delete cur.owner.sp.par;else delete cur.owner.up}
-  else{const p=findParent(roots,cur,null);const list=p?p.kids:roots;list.splice(list.indexOf(cur),1)}
-  dlg.close();save();render(true);
+  if(!confirm(`Delete ${cur.n}? Their children stay in the tree.`))return;
+  const p=cur;
+  D.marriages.slice().forEach(m=>{
+    if(m.a!==p.id&&m.b!==p.id)return;
+    const o=m.a===p.id?m.b:m.a,ks=D.persons.filter(c=>c.fam===m.id&&c!==p);
+    if(o&&ks.length){m.a=o;m.b=null}
+    else{ks.forEach(c=>c.fam=null);D.marriages.splice(D.marriages.indexOf(m),1)}
+  });
+  D.persons.splice(D.persons.indexOf(p),1);
+  if(sel===p.id)sel=null;
+  dlg.close();save();render(false);
 };
 $("addRoot").onclick=()=>{
-  const u={id:nextId++,n:"New person",g:"M",sp:null,kids:[]};
-  roots.push(u);save();render(true);edit(u);
+  const p={id:nid++,n:"New person",g:"M",fam:null};D.persons.push(p);save();render(true);edit(P[p.id]);
 };
 $("exp").onclick=()=>{
   const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(roots,null,2)],{type:"application/json"}));
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:"application/json"}));
   a.download="family-tree.json";a.click();
 };
 $("imp").onclick=()=>$("file").click();
 $("file").onchange=e=>{
   const f=e.target.files[0];if(!f)return;
-  f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d))throw 0;roots=d;save();render()}catch(_){alert("This file is not a valid family tree file.")}});
+  f.text().then(t=>{try{
+    const d=JSON.parse(t);
+    D=Array.isArray(d)?migrate(d):d;
+    if(!D.persons||!D.marriages)throw 0;
+    sel=null;save();render(false);
+  }catch(_){alert("This file is not a valid family tree file.");D=D&&D.persons?D:migrate(SAMPLE)}});
 };
-$("rst").onclick=()=>{if(confirm("Replace the current tree with the sample?")){roots=JSON.parse(JSON.stringify(SAMPLE));save();render()}};
-render();
+$("rst").onclick=()=>{if(confirm("Replace the current tree with the sample?")){D=migrate(SAMPLE);sel=null;save();render(false)}};
+render(false);
 </script>
 </body>
 </html>
