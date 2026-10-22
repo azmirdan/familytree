@@ -52,21 +52,36 @@ input,select{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px
 .mrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .mrow select{width:auto}
 .mrow button{padding:4px 8px;font-size:13px}
+.tab.on{background:var(--male);color:#fff;border-color:var(--male)}
+body.sum .treeonly,body.sum #panel{display:none}
+#sum{position:fixed;top:60px;left:0;right:0;bottom:0;overflow:auto;padding:24px 16px;z-index:3;background:var(--bg)}
+#sum[hidden]{display:none}
+#sum .wrap{max-width:760px;margin:0 auto}
+#sum h2{font-size:20px;margin:0 0 16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px}
+.stat b{display:block;font-size:30px;line-height:1.1}
+.stat span{font-size:13px;opacity:.8}
+.stat.m{border-top:4px solid var(--male)}.stat.f{border-top:4px solid var(--female)}
+.gbar{display:flex;height:22px;border-radius:11px;overflow:hidden;margin:18px 0 6px;background:var(--bd)}
+.gbar i{display:block;height:100%}
 </style>
 </head>
 <body>
 <div id="bar">
   <h1>Family Tree</h1>
-  <button id="addRoot" class="pri">Add person</button>
-  <button id="zin">Zoom +</button>
-  <button id="zout">Zoom −</button>
-  <button id="fit">Fit to screen</button>
+  <button id="tTree" class="tab on">Family Tree</button><button id="tSum" class="tab">Summary</button>
+  <button id="addRoot" class="pri treeonly">Add person</button>
+  <button id="zin" class="treeonly">Zoom +</button>
+  <button id="zout" class="treeonly">Zoom −</button>
+  <button id="fit" class="treeonly">Fit to screen</button>
   <button id="exp">Save file</button>
   <button id="imp">Open file</button>
   <button id="rst">Load sample</button>
   <input id="file" type="file" accept=".json" hidden>
 </div>
 <svg id="svg"><g id="vp"></g></svg>
+<section id="sum" hidden><div class="wrap"><h2>Family summary</h2><div class="stats" id="stats"></div><div class="gbar" id="gbar"></div><div id="glegend" style="font-size:13px"></div></div></section>
 <div id="empty"><div>No one here yet.<br>Choose “Add person” to start your tree.</div></div>
 
 <aside id="panel" hidden aria-live="polite">
@@ -450,7 +465,7 @@ $("spOk").onclick=()=>{
   if(isNew){dlg.close();edit(P[o.id])}else buildM();
 };
 $("delBtn").onclick=()=>{
-  if(!confirm(`Delete ${cur.n}? Their children stay in the tree.`))return;
+  if(!confirm(`Delete only ${cur.n}? Everyone else (spouse, parents, children) stays in the tree.`))return;
   const p=cur;
   D.marriages.slice().forEach(m=>{
     if(m.a!==p.id&&m.b!==p.id)return;
@@ -481,6 +496,31 @@ $("file").onchange=e=>{
   }catch(_){alert("This file is not a valid family tree file.");D=D&&D.persons?D:migrate(SAMPLE)}});
 };
 $("rst").onclick=()=>{if(confirm("Replace the current tree with the sample?")){D=migrate(SAMPLE);sel=null;save();render(false)}};
+function depth(p,seen){seen=seen||new Set();if(seen.has(p.id))return 1;seen.add(p.id);const pa=parents(p);return 1+(pa.length?Math.max(...pa.map(q=>depth(q,new Set(seen)))):0)}
+function renderSummary(){
+  reindex();
+  const ps=D.persons,n=ps.length,m=ps.filter(p=>p.g==="M").length,f=n-m,dead=ps.filter(isDead).length;
+  const pc=v=>n?Math.round(v/n*100)+"%":"0%";
+  const rows=[["Total people",n,""],["Male",m,"m",pc(m)],["Female",f,"f",pc(f)],["Living",n-dead,""],["Deceased",dead,""],
+    ["Marriages",D.marriages.filter(x=>x.b).length,""],["Generations",n?Math.max(...ps.map(p=>depth(p))):0,""]];
+  const box=$("stats");box.textContent="";
+  rows.forEach(([l,v,c,p])=>{
+    const d=document.createElement("div");d.className="stat "+c;
+    const b=document.createElement("b");b.textContent=v;
+    const sp=document.createElement("span");sp.textContent=l+(p?" ("+p+")":"");
+    d.append(b,sp);box.appendChild(d);
+  });
+  const g=$("gbar");g.textContent="";
+  [[m,"var(--male)"],[f,"var(--female)"]].forEach(([v,c])=>{const i=document.createElement("i");i.style.width=(n?v/n*100:0)+"%";i.style.background=c;g.appendChild(i)});
+  $("glegend").textContent=n?`Male ${m} · Female ${f}`:"No people yet.";
+}
+function showTab(t){
+  const sm=t==="sum";
+  document.body.classList.toggle("sum",sm);$("sum").hidden=!sm;
+  $("tTree").classList.toggle("on",!sm);$("tSum").classList.toggle("on",sm);
+  if(sm)renderSummary();else render(true);
+}
+$("tTree").onclick=()=>showTab("tree");$("tSum").onclick=()=>showTab("sum");
 render(false);
 </script>
 </body>
